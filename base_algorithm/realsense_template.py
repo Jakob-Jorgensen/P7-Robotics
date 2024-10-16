@@ -48,8 +48,8 @@ class RealSense_came():
             depth_image_in_meters = depth_data * depth_scale
 
             # Gentle scaling for visualization: Clip depth values between a defined range (e.g., 0.5 to 4 meters)
-            min_depth_meters = 0.6  # Minimum depth (closer than this will be clipped)
-            max_depth_meters = 5.0  # Maximum depth (farther than this will be clipped)
+            min_depth_meters = 0.0 # Minimum depth (closer than this will be clipped)
+            max_depth_meters = 2.0  # Maximum depth (farther than this will be clipped)
 
             # Clip the depth data within the defined range
             depth_clipped = np.clip(depth_image_in_meters, min_depth_meters, max_depth_meters)
@@ -63,13 +63,15 @@ class RealSense_came():
             depth_filtered = cv2.medianBlur(depth_16bit, 5)  # Apply a median filter with a 5x5 kernel
 
             # Display the filtered 16-bit depth image in OpenCV (grayscale 16-bit)
-            cv2.imshow('RealSense Depth Feed (Filtered 16-bit)', depth_filtered)
+            cv2.imshow('RealSense Depth Feed (Filtered 16-bit)', depth_data)
 
             # Display the color frame as well
             cv2.imshow('RealSense Color Feed', color_image)
 
             # Check for key press, exit if 'q' is pressed
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord('q'): 
+                cv2.imwrite("RGB.png",color_image) 
+                cv2.imwrite("Depth.png",depth_data)
                 break
 
     finally:
