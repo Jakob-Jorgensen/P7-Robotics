@@ -1,9 +1,9 @@
-import tensorflow as tf 
-from tensorflow.python.keras import layers, models 
+import tensorflow as tf
+from keras import models,layers
 
 
-
-def Miniproject(): 
+def Miniproject():  
+    
     model=models.Sequential() 
 
     # 1st Convolutional Layer Of Alexnet
@@ -11,14 +11,14 @@ def Miniproject():
     model.add(layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2)))
 
     # 2st layer: 1.Normalisation
-    #model.add()   
+    model.add(layers.LayerNormalization(axis=3))   
 
     # 3st layer: 1.Dilated Convolutional  
     model.add(layers.Conv2D(256, (5, 5),dilation_rate=(2,2), padding='same', activation='relu'))
     model.add(layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2)))
     
     # 4st layer: 2.Normalisation
-    #model.add(layers.no )  
+    model.add(layers.LayerNormalization(axis=3))   
 
     # 5st layer: 2.Dilated Convolutional
     model.add(layers.Conv2D(384, (3, 3),dilation_rate=(4,4), padding='same', activation='relu'))
@@ -89,5 +89,7 @@ def AlexNet():
 
     # Model summary
     model.summary() 
+
+
 
 Miniproject()
