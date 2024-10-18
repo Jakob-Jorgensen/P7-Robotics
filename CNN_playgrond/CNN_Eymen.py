@@ -150,6 +150,7 @@ class SaliencyNet(Model):
 
         # Final prediction
         out = self.fc_conv(fused)
+        out = tf.image.resize(out, (224, 224))  # Resize to (224, 224)
         
         return out
 
