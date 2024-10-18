@@ -102,12 +102,8 @@ class SaliencyNet(Model):
         self.depth_maxpool3 = layers.MaxPooling2D((3, 3), strides=2)
 
         # Fusion and final layers
-        self.fusion_conv = layers.Conv2D(256, (1, 1), padding='same', activation='relu')  # Use padding='same'
-        self.fc_conv = layers.Conv2D(1, (1, 1), padding='same', activation='sigmoid')  # Use padding='same'
-
-        # # Fusion and final layers
-        # self.fusion_conv = layers.Conv2D(256, (1, 1), activation='relu')
-        # self.fc_conv = layers.Conv2D(1, (1, 1), activation='sigmoid')  # Final prediction layer
+        self.fusion_conv = layers.Conv2D(256, (1, 1), activation='relu')
+        self.fc_conv = layers.Conv2D(1, (1, 1), activation='sigmoid')  # Final prediction layer
 
     # Forward pass for RGB stream
     def forward_rgb(self, x):
