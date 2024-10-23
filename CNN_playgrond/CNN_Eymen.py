@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import cv2
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import average_precision_score
+import pandas as pd 
+
 
 # Preprocessing function to load and preprocess both RGB and Depth images
 def preprocess_image(image_path, target_size=(224, 224)):
@@ -58,12 +63,17 @@ def load_dataset(rgb_folder, depth_folder, saliency_folder, target_size=(224, 22
     return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps)
 
 # Example dataset folders 
-rgb_folder = r"C:\Users\eymen\Documents\project1\NJU2K\RGB_left"
-depth_folder = r"C:\Users\eymen\Documents\project1\NJU2K\depth"
-saliency_folder = r"C:\Users\eymen\Documents\project1\NJU2K\GT"
+rgb_folder = r"C:\User.."
+depth_folder = r"C:\User.."
+saliency_folder = r"C:\User.."
 
 # Load the dataset
 rgb_images, depth_images, saliency_maps = load_dataset(rgb_folder, depth_folder, saliency_folder)
+
+# Split the dataset into training and validation sets (80% train, 20% validation)
+rgb_train, rgb_val, depth_train, depth_val, saliency_train, saliency_val = train_test_split(
+    rgb_images, depth_images, saliency_maps, test_size=0.2, random_state=42
+)
 
 # Check dataset shapes
 print(f"RGB images shape: {rgb_images.shape}")
@@ -175,23 +185,25 @@ model.compile(optimizer=optimizer, loss=loss_fn, metrics=['accuracy'])
 
 # Train the model
 history = model.fit(
-    [rgb_images, depth_images],  # Inputs as a list
-    saliency_maps,               # Targets
+    [rgb_train, depth_train],  # Inputs as a list
+    saliency_train,            # Targets
     epochs=10, 
     batch_size=16, 
-    validation_split=0.2
+    validation_data=([rgb_val, depth_val], saliency_val)  # Validation data
 )
-
 # Print accuracy after each epoch
 for epoch, acc in enumerate(history.history['accuracy']):
     print(f"Epoch {epoch+1}: Accuracy: {acc}")
 
-
+model.save('trainmodel.h5')
 
 # Function to visualize input and output saliency map
 def visualize_saliency(rgb_img, depth_img, saliency_map, prediction):
+
+    rgb_img1 = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2RGB)
+
     fig, axes = plt.subplots(1, 4, figsize=(16, 8))
-    axes[0].imshow(rgb_img)
+    axes[0].imshow(rgb_img1)
     axes[0].set_title("RGB Image")
     
     axes[1].imshow(depth_img)
@@ -205,13 +217,47 @@ def visualize_saliency(rgb_img, depth_img, saliency_map, prediction):
     
     plt.show()
 
-# Example: Predict saliency map for a sample image
-sample_rgb = rgb_images[0:1]  # Take the first RGB image
-sample_depth = depth_images[0:1]  # Take the corresponding depth image
-sample_saliency = saliency_maps[0]  # Ground truth saliency map for comparison
+# Example: Predict saliency map for a sample image from the validation set
+sample_index = 0  # Change this index to visualize different samples
+sample_rgb = rgb_val[sample_index:sample_index + 1]  # Take a single RGB image
+sample_depth = depth_val[sample_index:sample_index + 1]  # Take the corresponding depth image
+sample_saliency = saliency_val[sample_index]  # Ground truth saliency map for comparison
 
 # Predict saliency map
 predicted_saliency = model.predict([sample_rgb, sample_depth])
 
 # Visualize the result
 visualize_saliency(sample_rgb[0], sample_depth[0], sample_saliency, predicted_saliency[0])
+model.summary()
+
+# After training the model and obtaining predictions
+y_true = saliency_val.flatten()  # Flatten the ground truth saliency maps to a 1D array
+# Apply threshold to the ground truth to make it binary (0 or 1)
+y_true_binary = (y_true > 0.5).astype(int)  # Assuming values above 0.5 are considered salient
+y_scores = model.predict([rgb_val, depth_val]).flatten()  # Flatten the predicted saliency maps to a 1D array
+
+
+# Calculate precision-recall curve values
+precision, recall, thresholds = precision_recall_curve(y_true_binary, y_scores)
+
+# Calculate Average Precision (AP)
+average_precision = average_precision_score(y_true_binary, y_scores)
+print(f"Average Precision (AP): {average_precision:.4f}")
+
+# Calculate F1 scores at each threshold
+f1_scores = 2 * (precision * recall) / (precision + recall + 1e-8)
+
+# Best F1 score
+best_f1_index = f1_scores.argmax()
+best_f1 = f1_scores[best_f1_index]
+best_threshold = thresholds[best_f1_index]
+print(f"Best F1 Score: {best_f1:.4f} at threshold {best_threshold:.4f}")
+
+# Plot precision-recall curve
+plt.figure(figsize=(8, 6))
+plt.plot(recall, precision, marker='o')
+plt.title('Precision-Recall Curve')
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.grid()
+plt.show()
