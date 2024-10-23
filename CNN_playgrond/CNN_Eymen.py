@@ -245,7 +245,7 @@ average_precision = average_precision_score(y_true_binary, y_scores)
 print(f"Average Precision (AP): {average_precision:.4f}")
 
 # Calculate F1 scores at each threshold
-f1_scores = 2 * (precision * recall) / (precision + recall + 1e-8)
+f1_scores = 2 * (precision * recall) / (precision + recall + 1e-8) #The term 1e-8 is added to avoid division by zero
 
 # Best F1 score
 best_f1_index = f1_scores.argmax()
