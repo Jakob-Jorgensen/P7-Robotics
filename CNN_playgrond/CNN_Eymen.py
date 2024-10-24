@@ -12,29 +12,27 @@ import pandas as pd
 
 # Preprocessing function to load and preprocess both RGB and Depth images
 def preprocess_image(image_path, target_size=(224, 224)):
-    # Load the image using OpenCV
-    image = cv2.imread(image_path)
-    image = cv2.resize(image, target_size)
-    # Normalize the image to range [0, 1]
-    image = image.astype('float32') / 255.0
+    image = cv2.imread(image_path)              # Load the image using OpenCV
+    image = cv2.resize(image, target_size)      # Resize the image using OpenCV
+    image = image.astype('float32') / 255.0     # Normalize the image to range [0, 1]
     return image
 
 # Load RGB and Depth images from folder
 def load_dataset(rgb_folder, depth_folder, saliency_folder, target_size=(224, 224)):
-    rgb_images, depth_images, saliency_maps = [], [], []
-   
-    rgb_files = sorted(os.listdir(rgb_folder))
+    rgb_images, depth_images, saliency_maps = [], [], []    #create empty lists
+
+    rgb_files = sorted(os.listdir(rgb_folder))              #Sorted lists of the files and directories in the specified folders
     depth_files = sorted(os.listdir(depth_folder))
     saliency_files = sorted(os.listdir(saliency_folder))
 
-    print(f"Found {len(rgb_files)} RGB images.")
+    print(f"Found {len(rgb_files)} RGB images.")            #Printing founded image count from a list length
     print(f"Found {len(depth_files)} depth images.")
     print(f"Found {len(saliency_files)} saliency maps.")
 
     
-    for i, img_file in enumerate(rgb_files):
-        rgb_path = os.path.join(rgb_folder, img_file)
-        depth_img_file = img_file.replace('.jpg', '.png')
+    for i, img_file in enumerate(rgb_files):                #For loop for all images
+        rgb_path = os.path.join(rgb_folder, img_file)       #Make path for each image 
+        depth_img_file = img_file.replace('.jpg', '.png')   #Since all our depth and saliency images is png we are changing extensions from jpg to png 
         depth_path = os.path.join(depth_folder, depth_img_file)
         saliency_img_file = img_file.replace('.jpg', '.png')
         saliency_path = os.path.join(saliency_folder, saliency_img_file)
@@ -50,42 +48,40 @@ def load_dataset(rgb_folder, depth_folder, saliency_folder, target_size=(224, 22
             print(f"Saliency map not found: {saliency_path}")
             continue
         
-        rgb_image = preprocess_image(rgb_path, target_size)
+        rgb_image = preprocess_image(rgb_path, target_size)    #Send path and target size to preprocess function
         depth_image = preprocess_image(depth_path, target_size)
         saliency_map = preprocess_image(saliency_path, target_size)
-        saliency_map = saliency_map[:, :, :1]
+        saliency_map = saliency_map[:, :, :1] #                #Convert saliency maps to single-channel format
         
-        rgb_images.append(rgb_image)
+        rgb_images.append(rgb_image)                           #Add preprocessed images to list
         depth_images.append(depth_image)
         saliency_maps.append(saliency_map)
-        #print(f"Loaded {len(rgb_images)} RGB images, {len(depth_images)} depth images, {len(saliency_maps)} saliency maps.")
         
-    return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps)
+    return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps)    #Convert lists to Numpy arrays as an output
 
-# Example dataset folders 
-rgb_folder = r"C:\User.."
-depth_folder = r"C:\User.."
-saliency_folder = r"C:\User.."
+# Dataset folder paths
+rgb_folder = ""
+depth_folder = "
+saliency_folder = "
+
 
 # Load the dataset
-rgb_images, depth_images, saliency_maps = load_dataset(rgb_folder, depth_folder, saliency_folder)
-
-# Split the dataset into training and validation sets (80% train, 20% validation)
-rgb_train, rgb_val, depth_train, depth_val, saliency_train, saliency_val = train_test_split(
-    rgb_images, depth_images, saliency_maps, test_size=0.2, random_state=42
-)
+rgb_images, depth_images, saliency_maps = load_dataset(rgb_folder, depth_folder, saliency_folder)   #Send folder paths to load dataset function
 
 # Check dataset shapes
 print(f"RGB images shape: {rgb_images.shape}")
 print(f"Depth images shape: {depth_images.shape}")
 print(f"Saliency maps shape: {saliency_maps.shape}")
 
+# Split the dataset into training and validation sets (80% train, 20% validation)
+rgb_train, rgb_val, depth_train, depth_val, saliency_train, saliency_val = train_test_split(
+                                                                            rgb_images, depth_images, saliency_maps, test_size=0.2, random_state=42)
 
 
 # Define the CNN architecture for RGB-D saliency detection
-class SaliencyNet(Model):
+class Saliency(Model):
     def __init__(self):
-        super(SaliencyNet, self).__init__()
+        super(Saliency, self).__init__()
 
         # RGB Stream
         self.rgb_conv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
@@ -147,7 +143,7 @@ class SaliencyNet(Model):
 
     # Forward pass combining RGB and Depth (HHA) streams
     def call(self, inputs):
-        rgb, depth = inputs  # Unpack inputs
+        rgb, depth = inputs 
         # Process RGB and Depth streams separately
         rgb_out = self.forward_rgb(rgb)
         depth_out = self.forward_depth(depth)
@@ -165,7 +161,7 @@ class SaliencyNet(Model):
         return out
 
 # Instantiate the model
-model = SaliencyNet()
+model = Saliency()
 
 # Example input for RGB and Depth (HHA)
 rgb_input = tf.random.normal([1, 224, 224, 3])  # Simulated RGB input (batch size: 1, height: 224, width: 224, channels: 3)
@@ -173,7 +169,7 @@ depth_input = tf.random.normal([1, 224, 224, 3])  # Simulated Depth (HHA) input 
 
 # Forward pass through the model
 output = model([rgb_input, depth_input])
-print(output.shape)  # Expected output: (1, 50, 50, 1) (batch size: 1, height: 50, width: 50, channels: 1)
+print(output.shape) 
 
 # Define loss function (Binary Cross Entropy) and optimizer (Adam)
 loss_fn = tf.keras.losses.BinaryCrossentropy()
@@ -182,6 +178,7 @@ optimizer = tf.keras.optimizers.Adam()
 # Compile the model
 model.compile(optimizer=optimizer, loss=loss_fn, metrics=['accuracy'])
 
+#model.load_weights(filepath=r'..\trainmodel.h5')        #Load previosly saved model weights
 
 # Train the model
 history = model.fit(
@@ -191,11 +188,13 @@ history = model.fit(
     batch_size=16, 
     validation_data=([rgb_val, depth_val], saliency_val)  # Validation data
 )
+
 # Print accuracy after each epoch
 for epoch, acc in enumerate(history.history['accuracy']):
     print(f"Epoch {epoch+1}: Accuracy: {acc}")
 
-model.save('trainmodel.h5')
+#model.save('trainmodel.h5')                                #Save model
+model.summary()
 
 # Function to visualize input and output saliency map
 def visualize_saliency(rgb_img, depth_img, saliency_map, prediction):
@@ -217,7 +216,7 @@ def visualize_saliency(rgb_img, depth_img, saliency_map, prediction):
     
     plt.show()
 
-# Example: Predict saliency map for a sample image from the validation set
+# Predict saliency map for a sample image from the validation set
 sample_index = 0  # Change this index to visualize different samples
 sample_rgb = rgb_val[sample_index:sample_index + 1]  # Take a single RGB image
 sample_depth = depth_val[sample_index:sample_index + 1]  # Take the corresponding depth image
@@ -228,7 +227,7 @@ predicted_saliency = model.predict([sample_rgb, sample_depth])
 
 # Visualize the result
 visualize_saliency(sample_rgb[0], sample_depth[0], sample_saliency, predicted_saliency[0])
-model.summary()
+
 
 # After training the model and obtaining predictions
 y_true = saliency_val.flatten()  # Flatten the ground truth saliency maps to a 1D array
