@@ -163,14 +163,6 @@ class Saliency(Model):
 # Instantiate the model
 model = Saliency()
 
-# Example input for RGB and Depth (HHA)
-rgb_input = tf.random.normal([1, 224, 224, 3])  # Simulated RGB input (batch size: 1, height: 224, width: 224, channels: 3)
-depth_input = tf.random.normal([1, 224, 224, 3])  # Simulated Depth (HHA) input (batch size: 1, height: 224, width: 224, channels: 3)
-
-# Forward pass through the model
-output = model([rgb_input, depth_input])
-print(output.shape) 
-
 # Define loss function (Binary Cross Entropy) and optimizer (Adam)
 loss_fn = tf.keras.losses.BinaryCrossentropy()
 optimizer = tf.keras.optimizers.Adam()
