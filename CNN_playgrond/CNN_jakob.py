@@ -6,18 +6,23 @@ import numpy as np
 import PIL.Image as Image
 
 def build_stream(input_shape,stream_name):
-    model = models.Sequential(name=stream_name)
-    model.add(layers.Conv2D(96, (11,11), activation='relu',input_shape=input_shape))
-    #model.add(layers.MaxPooling2D((3, 3),strides=2))
+    model = models.Sequential(name=stream_name) 
+
+    model.add(layers.Conv2D(96, (11,11), activation='relu',input_shape=input_shape,padding='valid',strides=4))
+    model.add(layers.MaxPooling2D((3, 3),strides=1))
     model.add(layers.BatchNormalization(axis=-1))
 
-    model.add(layers.Conv2D(256, (5, 5), dilation_rate=2, activation='relu'))
-    #model.add(layers.MaxPooling2D(pool_size=(3, 3),strides=2))
+    model.add(layers.Conv2D(256, (5, 5),strides=1, dilation_rate=2, activation='relu',padding='same'))
     model.add(layers.BatchNormalization(axis=-1))
 
-    model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu'))
-    model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu'))
-    model.add(layers.Conv2D(256, (3, 3), dilation_rate=4, activation='relu')) 
+    model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same'))
+    model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same')) 
+
+    model.add(layers.Conv2D(256, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same'))   
+    model.add(layers.MaxPooling2D((3, 3),strides=1))  
+
+    model.add(layers.Dropout(0.5)) 
+    model.add(layers.Conv2D(1, (1, 1), activation='relu',padding='same')) 
 
     model.summary()
     return model
@@ -33,34 +38,30 @@ def build_fusion_model(rgb_shape, depth_shape):
 
     # Get the features from the streams
     rgb_features = rgb_stream(rgb_input)
-    depth_features = depth_stream(depth_input)
+    depth_features = depth_stream(depth_input) 
 
-    # Concatenate features from both streams
-    fused = layers.Concatenate(axis=-1)([rgb_features, depth_features])
-    convelutional_fused = layers.Conv2D(64, (1, 1), activation='relu')(fused)  
-    
-    #fused_flat = layers.Flatten()(convelutional_fused) 
-    fused_dense = layers.Dense(2, activation='relu')(convelutional_fused)
-    # Final convolutional layer to reduce to single channel output
-    #fused = layers.Conv2D(256, (1, 1), activation='relu')(fused)  
-    
-
+    # Concatenate features from both streams 
+    fused = layers.Concatenate(axis=-1)([rgb_features, depth_features]) 
+    #Reduce the number of channels 
+    fused = layers.Conv2D(1, (1, 1), activation='relu',padding='same')(fused)
+     
     # Build the model
-    model = models.Model(inputs=[rgb_input, depth_input], outputs=fused_dense, name='fusion_model') 
+    model = models.Model(inputs=[rgb_input, depth_input], outputs=fused, name='fusion_model') 
     
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     model.summary()
     return model
 
 # Paths to your datasets
-rgb_dir = glob.glob(os.path.join("dataset","RGB_left", "**"))
-depth_dir = glob.glob(os.path.join("dataset","depth", "**"))
-gt_dir = glob.glob(os.path.join("dataset","GT-1985", "**"))  
+rgb_dir = sorted(glob.glob(os.path.join("dataset","RGB_left", "**")))
+depth_dir = sorted(glob.glob(os.path.join("dataset","depth", "**")))
+gt_dir =sorted(glob.glob(os.path.join("dataset","GT-1985", "**")) )
+# The images must be sorted to match the ground truth images 
 
 # Define the batch size and image sizes
 batch_size = 32
 img_size = (224, 224)
-gt_size = (2,2)
+gt_size = (50,50)
 
 # Load and resize the images 
 print("Resizing images...")
@@ -68,6 +69,7 @@ rgb_images = np.array([np.array(Image.open(file).resize(img_size)) for file in r
 depth_images = np.array([np.array(Image.open(file).resize(img_size)) for file in depth_dir]) 
 gt_images = np.array([np.array(Image.open(file).resize(gt_size)) for file in gt_dir]) 
 print("Images resized.")
+
 # Split the dataset into training and validation sets
 RGB_train, RGB_valid, depth_train, depth_valid, GT_train, GT_valid=train_test_split(rgb_images, depth_images, gt_images, test_size=0.2, random_state=42)
 
