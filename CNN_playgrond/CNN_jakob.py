@@ -1,5 +1,5 @@
 import tensorflow as tf 
-from keras import models, layers
+from keras import models, layers,backend
 from sklearn.model_selection import train_test_split 
 import os, glob
 import numpy as np  
@@ -7,26 +7,18 @@ import PIL.Image as Image
 
 def build_stream(input_shape,stream_name):
     model = models.Sequential(name=stream_name)
-    model.add(layers.Conv2D(96, (11,11), activation='relu',input_shape=input_shape, padding='same'))
-    model.add(layers.MaxPooling2D((3, 3)))
+    model.add(layers.Conv2D(96, (11,11), activation='relu',input_shape=input_shape))
+    #model.add(layers.MaxPooling2D((3, 3),strides=2))
     model.add(layers.BatchNormalization(axis=-1))
 
-    model.add(layers.Conv2D(256, (5, 5), dilation_rate=2, activation='relu', padding='same'))
-    model.add(layers.MaxPooling2D(pool_size=(3, 3),strides=2))
+    model.add(layers.Conv2D(256, (5, 5), dilation_rate=2, activation='relu'))
+    #model.add(layers.MaxPooling2D(pool_size=(3, 3),strides=2))
     model.add(layers.BatchNormalization(axis=-1))
 
-    model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu', padding='same'))
-    model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu', padding='same'))
-    model.add(layers.Conv2D(256, (3, 3), dilation_rate=4, activation='relu', padding='same'))
-    model.add(layers.MaxPooling2D(pool_size=(3, 3),strides=2))
-    
-   # model.add(layers.Conv2D(128, (3, 3), activation='relu', padding='same'))
-   # model.add(layers.Conv2D(64, (3, 3), activation='relu', padding='same'))
+    model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu'))
+    model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu'))
+    model.add(layers.Conv2D(256, (3, 3), dilation_rate=4, activation='relu')) 
 
-    # Use the Resizing layer to resize to 50x50
-    #model.add(layers.Resizing(50, 50))
-
-   # model.add(layers.Conv2D(1, (1, 1), activation='sigmoid', padding='same')) 
     model.summary()
     return model
 
@@ -44,24 +36,19 @@ def build_fusion_model(rgb_shape, depth_shape):
     depth_features = depth_stream(depth_input)
 
     # Concatenate features from both streams
-    fused = layers.Concatenate()([rgb_features, depth_features])
-
+    fused = layers.Concatenate(axis=-1)([rgb_features, depth_features])
+    convelutional_fused = layers.Conv2D(64, (1, 1), activation='relu')(fused)  
+    
+    #fused_flat = layers.Flatten()(convelutional_fused) 
+    fused_dense = layers.Dense(2, activation='relu')(convelutional_fused)
     # Final convolutional layer to reduce to single channel output
-    fused = layers.Conv2D(256, (1, 1), activation='relu', padding='same')(fused)  
-    # Output layer
-    fully_connected = layers.Conv2D(1, (1, 1), activation='sigmoid', padding='same')(fused) 
-    # Resize the output to 50x50  
+    #fused = layers.Conv2D(256, (1, 1), activation='relu')(fused)  
+    
 
-
-
-    #### THIS ONE  IS NOT WORKING YET ##### 
-    resize = layers.Resizing(50, 50)(fully_connected)  
-    #######################################################
-   
     # Build the model
-    model = models.Model(inputs=[rgb_input, depth_input], outputs=resize, name='fusion_model') 
-
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model = models.Model(inputs=[rgb_input, depth_input], outputs=fused_dense, name='fusion_model') 
+    
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     model.summary()
     return model
 
@@ -73,7 +60,7 @@ gt_dir = glob.glob(os.path.join("dataset","GT-1985", "**"))
 # Define the batch size and image sizes
 batch_size = 32
 img_size = (224, 224)
-gt_size = (50, 50)
+gt_size = (2,2)
 
 # Load and resize the images 
 print("Resizing images...")
