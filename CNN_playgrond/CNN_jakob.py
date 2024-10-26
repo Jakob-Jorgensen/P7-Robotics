@@ -7,6 +7,33 @@ import numpy as np
 import cv2 
 #import PIL.Image as Image
 
+#Plot the depth rgb image, depth, ground truth and the predicted image 
+def plot_image(rgb, depth, gt, pred):
+    plt.figure(figsize=(10, 10))
+    plt.subplot(1, 4, 1)
+    plt.imshow(rgb)
+    plt.title("RGB Image")
+    plt.axis("off")
+
+    plt.subplot(1, 4, 2)
+    plt.imshow(depth, cmap="gray")
+    plt.title("Depth Image")
+    plt.axis("off")
+
+    plt.subplot(1, 4, 3)
+    plt.imshow(gt, cmap="gray")
+    plt.title("Ground Truth")
+    plt.axis("off")
+
+    plt.subplot(1, 4, 4)
+    plt.imshow(pred, cmap="gray")
+    plt.title("Predicted Image")
+    plt.axis("off")
+    plt.show()
+
+
+
+# Define the stream model:
 def build_stream(input_shape,stream_name):
     model = models.Sequential(name=stream_name) 
 
@@ -27,8 +54,9 @@ def build_stream(input_shape,stream_name):
     model.add(layers.Conv2D(1, (1, 1), activation='relu',padding='same')) 
 
     model.summary()
-    return model
+    return model 
 
+# Define the fusion model:
 def build_fusion_model(rgb_shape, depth_shape): 
     # Define the inputs
     rgb_input = layers.Input(shape=rgb_shape, name='rgb_input')
@@ -121,30 +149,5 @@ print("Loss: ", loss)
 print("Accuracy: ", accuracy)  
 
 #plot the training and validation accuracy and loss at each epoch 
-
-
-
-#Plot the depth rgb image, depth, ground truth and the predicted image 
-def plot_image(rgb, depth, gt, pred):
-    plt.figure(figsize=(10, 10))
-    plt.subplot(1, 4, 1)
-    plt.imshow(rgb)
-    plt.title("RGB Image")
-    plt.axis("off")
-
-    plt.subplot(1, 4, 2)
-    plt.imshow(depth, cmap="gray")
-    plt.title("Depth Image")
-    plt.axis("off")
-
-    plt.subplot(1, 4, 3)
-    plt.imshow(gt, cmap="gray")
-    plt.title("Ground Truth")
-    plt.axis("off")
-
-    plt.subplot(1, 4, 4)
-    plt.imshow(pred, cmap="gray")
-    plt.title("Predicted Image")
-    plt.axis("off")
-    plt.show()
+plot_image(RGB_valid[0], depth_valid[0], GT_valid[0], model.predict([RGB_valid[0], depth_valid[0]]))
 
