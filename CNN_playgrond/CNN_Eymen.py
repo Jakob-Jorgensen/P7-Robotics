@@ -11,7 +11,7 @@ import pandas as pd
 
 
 # Preprocessing function to load and preprocess both RGB and Depth images
-def preprocess_image(image_path, target_size=(224, 224)):
+def preprocess_image(image_path, target_size):
     image = cv2.imread(image_path)              # Load the image using OpenCV
     image = cv2.resize(image, target_size)      # Resize the image using OpenCV
     image = image.astype('float32') / 255.0     # Normalize the image to range [0, 1]
@@ -50,7 +50,7 @@ def load_dataset(rgb_folder, depth_folder, saliency_folder, target_size=(224, 22
         
         rgb_image = preprocess_image(rgb_path, target_size)    #Send path and target size to preprocess function
         depth_image = preprocess_image(depth_path, target_size)
-        saliency_map = preprocess_image(saliency_path, target_size)
+        saliency_map = preprocess_image(saliency_path, (50,50))
         saliency_map = saliency_map[:, :, :1] #                #Convert saliency maps to single-channel format
         
         rgb_images.append(rgb_image)                           #Add preprocessed images to list
@@ -60,9 +60,9 @@ def load_dataset(rgb_folder, depth_folder, saliency_folder, target_size=(224, 22
     return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps)    #Convert lists to Numpy arrays as an output
 
 # Dataset folder paths
-rgb_folder = ""
-depth_folder = "
-saliency_folder = "
+rgb_folder = r"C:\Users\eymen\Documents\project1\NJU2K\RGB_left"
+depth_folder =r"C:\Users\eymen\Documents\project1\NJU2K\depth"
+saliency_folder = r"C:\Users\eymen\Documents\project1\NJU2K\GT-1985"
 
 
 # Load the dataset
@@ -85,31 +85,36 @@ class Saliency(Model):
 
         # RGB Stream
         self.rgb_conv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
-        self.rgb_maxpool1 = layers.MaxPooling2D((3, 3), strides=2)
-        self.rgb_norm1 =  layers.BatchNormalization()
-        self.rgb_dilated_conv2 = layers.Conv2D(256, (5, 5), padding='same', dilation_rate=2, activation='relu')
+        self.rgb_maxpool1 = layers.MaxPooling2D((3, 3), strides=1)
+        self.rgb_norm1 =  layers.BatchNormalization(axis=-1)
+
+        self.rgb_dilated_conv2 = layers.Conv2D(256, (5, 5), strides=1 , padding='same', dilation_rate=2, activation='relu')
         self.rgb_maxpool2 = layers.MaxPooling2D(pool_size=(3, 3), strides=2)
-        self.rgb_norm2 =  layers.BatchNormalization()
-        self.rgb_dilated_conv3 = layers.Conv2D(384, (3, 3), padding='same', dilation_rate=4, activation='relu')
-        self.rgb_dilated_conv4 = layers.Conv2D(384, (3, 3), padding='same', dilation_rate=4, activation='relu')
-        self.rgb_dilated_conv5 = layers.Conv2D(256, (3, 3), padding='same', dilation_rate=4, activation='relu')
-        self.rgb_maxpool3 = layers.MaxPooling2D(pool_size=(3, 3), strides=2)
+        self.rgb_norm2 =  layers.BatchNormalization(axis=-1)
+
+        self.rgb_dilated_conv3 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
+        self.rgb_dilated_conv4 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
+        self.rgb_dilated_conv5 = layers.Conv2D(256, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
+        self.rgb_maxpool3 = layers.MaxPooling2D(pool_size=(3, 3), strides=1)
 
         # Depth (HHA) Stream
         self.depth_conv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
-        self.depth_maxpool1 = layers.MaxPooling2D((3, 3), strides=2)
-        self.depth_norm1 =  layers.BatchNormalization()
-        self.depth_dilated_conv2 = layers.Conv2D(256, (5, 5), padding='same', dilation_rate=2, activation='relu')
-        self.depth_maxpool2 = layers.MaxPooling2D((3, 3), strides=2)
-        self.depth_norm2 =  layers.BatchNormalization()
-        self.depth_dilated_conv3 = layers.Conv2D(384, (3, 3), padding='same', dilation_rate=4, activation='relu')
-        self.depth_dilated_conv4 = layers.Conv2D(384, (3, 3), padding='same', dilation_rate=4, activation='relu')
-        self.depth_dilated_conv5 = layers.Conv2D(256, (3, 3), padding='same', dilation_rate=4, activation='relu')
-        self.depth_maxpool3 = layers.MaxPooling2D((3, 3), strides=2)
+        self.depth_maxpool1 = layers.MaxPooling2D((3, 3), strides=1)
+        self.depth_norm1 =  layers.BatchNormalization(axis=-1)
 
-        # Fusion and final layers
-        self.fusion_conv = layers.Conv2D(256, (1, 1), activation='relu')
-        self.fc_conv = layers.Conv2D(1, (1, 1), activation='sigmoid')  # Final prediction layer
+        self.depth_dilated_conv2 = layers.Conv2D(256, (5, 5), strides=1 , padding='same', dilation_rate=2, activation='relu')
+        self.depth_maxpool2 = layers.MaxPooling2D((3, 3), strides=2)
+        self.depth_norm2 =  layers.BatchNormalization(axis=-1)
+
+        self.depth_dilated_conv3 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
+        self.depth_dilated_conv4 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
+        self.depth_dilated_conv5 = layers.Conv2D(256, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
+        self.depth_maxpool3 = layers.MaxPooling2D((3, 3), strides=1)
+
+        self.dropout = layers.Dropout(0.5)
+        # final layer
+        self.fc_conv1 = layers.Conv2D(1, (1, 1), activation='relu')  # Final prediction layer
+        self.fc_conv2 = layers.Conv2D(1, (1, 1), activation='relu')  # Final prediction layer
 
     # Forward pass for RGB stream
     def forward_rgb(self, x):
@@ -117,12 +122,14 @@ class Saliency(Model):
         x = self.rgb_maxpool1(x)
         x = self.rgb_norm1(x)
         x = self.rgb_dilated_conv2(x)
-        x = self.rgb_maxpool2(x)
+        #x = self.rgb_maxpool2(x)
         x = self.rgb_norm2(x)
         x = self.rgb_dilated_conv3(x)
         x = self.rgb_dilated_conv4(x)
         x = self.rgb_dilated_conv5(x)
         x = self.rgb_maxpool3(x)
+        #x = self.dropout(x)
+        x = self.fc_conv1(x)
 
         return x
 
@@ -132,12 +139,14 @@ class Saliency(Model):
         x = self.depth_maxpool1(x)
         x = self.depth_norm1(x)
         x = self.depth_dilated_conv2(x)
-        x = self.depth_maxpool2(x)
+        #x = self.depth_maxpool2(x)
         x = self.depth_norm2(x)
         x = self.depth_dilated_conv3(x)
         x = self.depth_dilated_conv4(x)
         x = self.depth_dilated_conv5(x)
         x = self.depth_maxpool3(x)
+        #x = self.dropout(x)
+        x = self.fc_conv1(x)
 
         return x
 
@@ -147,30 +156,34 @@ class Saliency(Model):
         # Process RGB and Depth streams separately
         rgb_out = self.forward_rgb(rgb)
         depth_out = self.forward_depth(depth)
-
+        # print(f"Out rgb: {rgb_out.shape}")
+        # print(f"Out depth: {depth_out.shape}")
         # Fuse high-level features from both streams
         fused = tf.concat([rgb_out, depth_out], axis=-1)
         
         # Pass through fusion convolutional layer
-        fused = self.fusion_conv(fused)
+        #fused = self.fusion_conv(fused)
 
         # Final prediction
-        out = self.fc_conv(fused)
-        out = tf.image.resize(out, (224, 224))  # Resize to (224, 224)
+        fused = self.fc_conv2(fused)
+     
+        print(f"Out shape: {fused.shape}")
+        #out = tf.image.resize(fused, (224, 224))  # Resize to (224, 224)
         
-        return out
+        return fused
 
 # Instantiate the model
 model = Saliency()
 
-# Define loss function (Binary Cross Entropy) and optimizer (Adam)
+# Define loss function and optimizer (Adam)
 loss_fn = tf.keras.losses.BinaryCrossentropy()
 optimizer = tf.keras.optimizers.Adam()
 
 # Compile the model
 model.compile(optimizer=optimizer, loss=loss_fn, metrics=['accuracy'])
 
-#model.load_weights(filepath=r'..\trainmodel.h5')        #Load previosly saved model weights
+#model.load_weights(filepath='C:/Users/eymen/Documents/project1/trainmodel.h5')        #Load previosly saved model weights
+
 
 # Train the model
 history = model.fit(
@@ -185,8 +198,8 @@ history = model.fit(
 for epoch, acc in enumerate(history.history['accuracy']):
     print(f"Epoch {epoch+1}: Accuracy: {acc}")
 
-#model.save('trainmodel.h5')                                #Save model
-model.summary()
+model.save('trainmodel.h5')                                #Save model
+
 
 # Function to visualize input and output saliency map
 def visualize_saliency(rgb_img, depth_img, saliency_map, prediction):
@@ -209,7 +222,7 @@ def visualize_saliency(rgb_img, depth_img, saliency_map, prediction):
     plt.show()
 
 # Predict saliency map for a sample image from the validation set
-sample_index = 0  # Change this index to visualize different samples
+sample_index = 3  # Change this index to visualize different samples
 sample_rgb = rgb_val[sample_index:sample_index + 1]  # Take a single RGB image
 sample_depth = depth_val[sample_index:sample_index + 1]  # Take the corresponding depth image
 sample_saliency = saliency_val[sample_index]  # Ground truth saliency map for comparison
