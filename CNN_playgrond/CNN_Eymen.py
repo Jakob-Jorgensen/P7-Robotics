@@ -14,7 +14,7 @@ import pandas as pd
 def preprocess_image(image_path, target_size):
     image = cv2.imread(image_path)              # Load the image using OpenCV
     image = cv2.resize(image, target_size)      # Resize the image using OpenCV
-    image = image.astype('float32') / 255.0     # Normalize the image to range [0, 1]
+    image = image.astype('float32') / 255.0  # Normalize the image to range [0, 1]
     return image
 
 # Load RGB and Depth images from folder
@@ -51,7 +51,7 @@ def load_dataset(rgb_folder, depth_folder, saliency_folder, target_size=(224, 22
         rgb_image = preprocess_image(rgb_path, target_size)    #Send path and target size to preprocess function
         depth_image = preprocess_image(depth_path, target_size)
         saliency_map = preprocess_image(saliency_path, (50,50))
-        saliency_map = saliency_map[:, :, :1] #                #Convert saliency maps to single-channel format
+        saliency_map = saliency_map[:, :, :1]                #Convert saliency maps to single-channel format
         
         rgb_images.append(rgb_image)                           #Add preprocessed images to list
         depth_images.append(depth_image)
@@ -86,35 +86,32 @@ class Saliency(Model):
         # RGB Stream
         self.rgb_conv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
         self.rgb_maxpool1 = layers.MaxPooling2D((3, 3), strides=1)
-        self.rgb_norm1 =  layers.BatchNormalization(axis=-1)
+        self.rgb_norm1 =  layers.BatchNormalization()
 
-        self.rgb_dilated_conv2 = layers.Conv2D(256, (5, 5), strides=1 , padding='same', dilation_rate=2, activation='relu')
-        self.rgb_maxpool2 = layers.MaxPooling2D(pool_size=(3, 3), strides=2)
-        self.rgb_norm2 =  layers.BatchNormalization(axis=-1)
+        self.rgb_dilated_conv2 = layers.Conv2D(256, (3, 3), strides=1 , padding='same', dilation_rate=2, activation='relu')
+        self.rgb_maxpool2 = layers.MaxPooling2D(pool_size=(3, 3), strides=1)
+        self.rgb_norm2 =  layers.BatchNormalization()
 
         self.rgb_dilated_conv3 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
         self.rgb_dilated_conv4 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
         self.rgb_dilated_conv5 = layers.Conv2D(256, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
-        self.rgb_maxpool3 = layers.MaxPooling2D(pool_size=(3, 3), strides=1)
 
         # Depth (HHA) Stream
         self.depth_conv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
         self.depth_maxpool1 = layers.MaxPooling2D((3, 3), strides=1)
-        self.depth_norm1 =  layers.BatchNormalization(axis=-1)
+        self.depth_norm1 =  layers.BatchNormalization()
 
-        self.depth_dilated_conv2 = layers.Conv2D(256, (5, 5), strides=1 , padding='same', dilation_rate=2, activation='relu')
-        self.depth_maxpool2 = layers.MaxPooling2D((3, 3), strides=2)
-        self.depth_norm2 =  layers.BatchNormalization(axis=-1)
+        self.depth_dilated_conv2 = layers.Conv2D(256, (3, 3), strides=1 , padding='same', dilation_rate=2, activation='relu')
+        self.depth_maxpool2 = layers.MaxPooling2D((3, 3), strides=1)
+        self.depth_norm2 =  layers.BatchNormalization()
 
         self.depth_dilated_conv3 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
         self.depth_dilated_conv4 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
         self.depth_dilated_conv5 = layers.Conv2D(256, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
-        self.depth_maxpool3 = layers.MaxPooling2D((3, 3), strides=1)
 
-        self.dropout = layers.Dropout(0.5)
-        # final layer
-        self.fc_conv1 = layers.Conv2D(1, (1, 1), activation='relu')  # Final prediction layer
-        self.fc_conv2 = layers.Conv2D(1, (1, 1), activation='relu')  # Final prediction layer
+        # Fusion and final layer
+        self.fc_conv1 = layers.Conv2D(1, (1, 1), activation='sigmoid')  
+        self.fc_conv2 = layers.Conv2D(1, (1, 1), activation='sigmoid') 
 
     # Forward pass for RGB stream
     def forward_rgb(self, x):
@@ -122,13 +119,11 @@ class Saliency(Model):
         x = self.rgb_maxpool1(x)
         x = self.rgb_norm1(x)
         x = self.rgb_dilated_conv2(x)
-        #x = self.rgb_maxpool2(x)
+        x = self.rgb_maxpool2(x)
         x = self.rgb_norm2(x)
         x = self.rgb_dilated_conv3(x)
         x = self.rgb_dilated_conv4(x)
         x = self.rgb_dilated_conv5(x)
-        x = self.rgb_maxpool3(x)
-        #x = self.dropout(x)
         x = self.fc_conv1(x)
 
         return x
@@ -139,13 +134,11 @@ class Saliency(Model):
         x = self.depth_maxpool1(x)
         x = self.depth_norm1(x)
         x = self.depth_dilated_conv2(x)
-        #x = self.depth_maxpool2(x)
+        x = self.depth_maxpool2(x)
         x = self.depth_norm2(x)
         x = self.depth_dilated_conv3(x)
         x = self.depth_dilated_conv4(x)
         x = self.depth_dilated_conv5(x)
-        x = self.depth_maxpool3(x)
-        #x = self.dropout(x)
         x = self.fc_conv1(x)
 
         return x
@@ -156,21 +149,17 @@ class Saliency(Model):
         # Process RGB and Depth streams separately
         rgb_out = self.forward_rgb(rgb)
         depth_out = self.forward_depth(depth)
-        # print(f"Out rgb: {rgb_out.shape}")
-        # print(f"Out depth: {depth_out.shape}")
+
         # Fuse high-level features from both streams
         fused = tf.concat([rgb_out, depth_out], axis=-1)
-        
-        # Pass through fusion convolutional layer
-        #fused = self.fusion_conv(fused)
 
         # Final prediction
-        fused = self.fc_conv2(fused)
+        out = self.fc_conv2(fused)
+        #fused = fused[:, :, :, :1]  
      
-        print(f"Out shape: {fused.shape}")
-        #out = tf.image.resize(fused, (224, 224))  # Resize to (224, 224)
+        #print(f"Out shape: {out.shape}")
         
-        return fused
+        return out
 
 # Instantiate the model
 model = Saliency()
@@ -182,14 +171,14 @@ optimizer = tf.keras.optimizers.Adam()
 # Compile the model
 model.compile(optimizer=optimizer, loss=loss_fn, metrics=['accuracy'])
 
-#model.load_weights(filepath='C:/Users/eymen/Documents/project1/trainmodel.h5')        #Load previosly saved model weights
+#model.load_weights('C:/Users/eymen/Documents/project1/trainmodel.keras')        #Load previosly saved model weights
 
 
 # Train the model
 history = model.fit(
     [rgb_train, depth_train],  # Inputs as a list
     saliency_train,            # Targets
-    epochs=10, 
+    epochs=5, 
     batch_size=16, 
     validation_data=([rgb_val, depth_val], saliency_val)  # Validation data
 )
@@ -198,7 +187,8 @@ history = model.fit(
 for epoch, acc in enumerate(history.history['accuracy']):
     print(f"Epoch {epoch+1}: Accuracy: {acc}")
 
-model.save('trainmodel.h5')                                #Save model
+model.summary()
+model.save('trainmodel.keras')                                #Save model
 
 
 # Function to visualize input and output saliency map
@@ -222,17 +212,24 @@ def visualize_saliency(rgb_img, depth_img, saliency_map, prediction):
     plt.show()
 
 # Predict saliency map for a sample image from the validation set
-sample_index = 3  # Change this index to visualize different samples
-sample_rgb = rgb_val[sample_index:sample_index + 1]  # Take a single RGB image
-sample_depth = depth_val[sample_index:sample_index + 1]  # Take the corresponding depth image
+sample_index = 0  # Change this index to visualize different samples
+sample_rgb = rgb_val[sample_index:sample_index+1]  # Take a single RGB image
+sample_depth = depth_val[sample_index:sample_index+1]  # Take the corresponding depth image
 sample_saliency = saliency_val[sample_index]  # Ground truth saliency map for comparison
 
 # Predict saliency map
 predicted_saliency = model.predict([sample_rgb, sample_depth])
+print(f"predicted shape: {predicted_saliency.shape}")
+print("saliency map output values:",predicted_saliency[0,:,:,0])
+print("saliency map output values:",predicted_saliency[0,25,25,0])
 
 # Visualize the result
 visualize_saliency(sample_rgb[0], sample_depth[0], sample_saliency, predicted_saliency[0])
 
+
+
+
+#BELOW ABOUT PRECISION-RECALL METHOD
 
 # After training the model and obtaining predictions
 y_true = saliency_val.flatten()  # Flatten the ground truth saliency maps to a 1D array
