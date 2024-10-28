@@ -54,9 +54,10 @@ def build_fusion_model(rgb_shape, depth_shape):
     out_put = layers.Conv2D(1, (1, 1), activation='sigmoid',padding='same')(fused)
      
     # Build the model
-    model = models.Model(inputs=[rgb_input, depth_input], outputs=out_put, name='fusion_model') 
-    #Categorical_crossentropy or  binary_crossentropy
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model = models.Model(inputs=[rgb_input, depth_input], outputs=out_put, name='fusion_model')  
+    
+    #Binary_crossentropy is used because the output is binary 
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     model.summary()
     return model
 
@@ -65,7 +66,7 @@ rgb_dir = sorted(glob.glob(os.path.join("dataset","RGB_left", "**")))
 depth_dir = sorted(glob.glob(os.path.join("dataset","depth", "**")))
 gt_dir =sorted(glob.glob(os.path.join("dataset","GT-1985", "**")) )
 
-# Define the batch size and image sizes
+# Define the image sizes
 img_size = (224, 224)
 gt_size = (50,50)
 
