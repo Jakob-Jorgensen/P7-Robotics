@@ -8,23 +8,25 @@ import cv2
 
 # Define the stream model:
 def build_stream(input_shape,stream_name):
-    model = models.Sequential(name=stream_name) 
+    model = models.Sequential(name=stream_name)  
 
-    model.add(layers.Conv2D(96, (11,11), activation='relu',input_shape=input_shape,padding='valid',strides=4))
+    model.add(layers.Input(shape=input_shape)) 
+
+    model.add(layers.Conv2D(96, (11,11), activation='relu',padding='valid',strides=4))
     model.add(layers.MaxPooling2D((3, 3),strides=1))
     model.add(layers.BatchNormalization())
 
-    model.add(layers.Conv2D(256, (5, 5),strides=1, dilation_rate=2, activation='relu',padding='same'))
+    model.add(layers.Conv2D(256, (5, 5),strides=1, dilation_rate=2, activation='relu',padding='same')) 
+    model.add(layers.MaxPooling2D((3, 3),strides=1))
     model.add(layers.BatchNormalization())
 
     model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same'))
     model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same')) 
 
     model.add(layers.Conv2D(256, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same'))   
-    model.add(layers.MaxPooling2D((3, 3),strides=1))  
-
+ 
     model.add(layers.Dropout(0.5))  
-    model.add(layers.Conv2D(1, (1, 1), activation='sigmoid',padding='same')) 
+    model.add(layers.Conv2D(1, (1, 1), activation='sigmoid')) 
 
     model.summary()
     return model 
@@ -46,13 +48,13 @@ def build_fusion_model(rgb_shape, depth_shape):
     depth_features = depth_stream(depth_input) 
 
     # Concatenate features from both streams 
-    fused = layers.Concatenate()([rgb_features, depth_features])  
+    fused = layers.Concatenate(axis=-1)([rgb_features, depth_features])  
 
     #Reduce the number of channels 
-    fused = layers.Conv2D(1, (1, 1), activation='relu',padding='same')(fused)
+    out_put = layers.Conv2D(1, (1, 1), activation='sigmoid',padding='same')(fused)
      
     # Build the model
-    model = models.Model(inputs=[rgb_input, depth_input], outputs=fused, name='fusion_model') 
+    model = models.Model(inputs=[rgb_input, depth_input], outputs=out_put, name='fusion_model') 
     #Categorical_crossentropy or  binary_crossentropy
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     model.summary()
@@ -76,18 +78,7 @@ print("Images resized.")
 
 
 # Split the dataset into training and validation sets
-RGB_train, RGB_valid, depth_train, depth_valid, GT_train, GT_valid=train_test_split(rgb_images, depth_images, gt_images, test_size=0.2,shuffle=False)  
-
-# Display the images
-#cv2.imshow("RGB_before", rgb_images[0]) 
-#cv2.imshow("RGB_after", RGB_train[0])  
-#cv2.imshow("Depth_before", depth_images[0]) 
-#cv2.imshow("Depth_after", depth_train[0]) 
-#cv2.imshow("GT_before", gt_images[0]) 
-#cv2.imshow("GT_after", GT_train[0])  
-#print(rgb_images[0].shape)
-#cv2.waitKey(0)
-
+RGB_train, RGB_valid, depth_train, depth_valid, GT_train, GT_valid=train_test_split(rgb_images, depth_images, gt_images, test_size=0.2,shuffle=True)  
 
 # Build the fusion model
 model = build_fusion_model((img_size[0], img_size[1], 3), (img_size[0], img_size[1], 1))
@@ -96,14 +87,13 @@ model = build_fusion_model((img_size[0], img_size[1], 3), (img_size[0], img_size
 history = model.fit(
     [RGB_train, depth_train],  # Training data
     GT_train, # Ground truth labels
-    epochs=1,
-    batch_size=16,  
-    shuffle=True, 
+    epochs=10,
+    batch_size=16,   
     validation_data=([RGB_valid, depth_valid], GT_valid)  
 )  
 
 # Save the model
-model.save("test_model.h5")
+model.save("Saliency_model.h5")
 
 # Evaluate the model 
 loss, accuracy = model.evaluate([RGB_valid, depth_valid], GT_valid) 
