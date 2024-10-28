@@ -24,7 +24,7 @@ def build_stream(input_shape,stream_name):
     model.add(layers.MaxPooling2D((3, 3),strides=1))  
 
     model.add(layers.Dropout(0.5))  
-    model.add(layers.Conv2D(1, (1, 1), activation='relu',padding='same')) 
+    model.add(layers.Conv2D(1, (1, 1), activation='sigmoid',padding='same')) 
 
     model.summary()
     return model 
@@ -63,21 +63,31 @@ rgb_dir = sorted(glob.glob(os.path.join("dataset","RGB_left", "**")))
 depth_dir = sorted(glob.glob(os.path.join("dataset","depth", "**")))
 gt_dir =sorted(glob.glob(os.path.join("dataset","GT-1985", "**")) )
 
-
 # Define the batch size and image sizes
-batch_size = 32
 img_size = (224, 224)
 gt_size = (50,50)
 
 # Loading and resize the images 
 print("Resizing images...")
-rgb_images = np.array([cv2.resize(cv2.imread(file), img_size) for file in rgb_dir]) 
-depth_images = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), img_size), cv2.COLOR_RGB2GRAY) for file in depth_dir])  # Reducing the number of channels to 1 
-gt_images = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), gt_size), cv2.COLOR_RGB2GRAY) for file in gt_dir]) # Reducing the number of channels to 1 
+rgb_images = np.array([cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0 for file in rgb_dir]) 
+depth_images = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0, cv2.COLOR_RGB2GRAY) for file in depth_dir])  # Reducing the number of channels to 1 
+gt_images = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), gt_size).astype('float32')/255.0, cv2.COLOR_RGB2GRAY) for file in gt_dir]) # Reducing the number of channels to 1 
 print("Images resized.")  
 
+
 # Split the dataset into training and validation sets
-RGB_train, RGB_valid, depth_train, depth_valid, GT_train, GT_valid=train_test_split(rgb_images, depth_images, gt_images, test_size=0.2)  
+RGB_train, RGB_valid, depth_train, depth_valid, GT_train, GT_valid=train_test_split(rgb_images, depth_images, gt_images, test_size=0.2,shuffle=False)  
+
+# Display the images
+#cv2.imshow("RGB_before", rgb_images[0]) 
+#cv2.imshow("RGB_after", RGB_train[0])  
+#cv2.imshow("Depth_before", depth_images[0]) 
+#cv2.imshow("Depth_after", depth_train[0]) 
+#cv2.imshow("GT_before", gt_images[0]) 
+#cv2.imshow("GT_after", GT_train[0])  
+#print(rgb_images[0].shape)
+#cv2.waitKey(0)
+
 
 # Build the fusion model
 model = build_fusion_model((img_size[0], img_size[1], 3), (img_size[0], img_size[1], 1))
@@ -86,15 +96,14 @@ model = build_fusion_model((img_size[0], img_size[1], 3), (img_size[0], img_size
 history = model.fit(
     [RGB_train, depth_train],  # Training data
     GT_train, # Ground truth labels
-    epochs=30,
+    epochs=1,
     batch_size=16,  
     shuffle=True, 
-   
     validation_data=([RGB_valid, depth_valid], GT_valid)  
 )  
 
 # Save the model
-model.save("fusion_model_with_dropout_30epoc.h5")
+model.save("test_model.h5")
 
 # Evaluate the model 
 loss, accuracy = model.evaluate([RGB_valid, depth_valid], GT_valid) 
