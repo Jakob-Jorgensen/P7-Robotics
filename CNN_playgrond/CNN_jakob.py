@@ -6,31 +6,6 @@ import os, glob
 import numpy as np   
 import cv2 
 
-
-#Plot the depth rgb image, depth, ground truth and the predicted image 
-def plot_image(rgb, depth, gt, pred):
-    plt.figure(figsize=(10, 10))
-    plt.subplot(1, 4, 1)
-    plt.imshow(rgb)
-    plt.title("RGB Image")
-    plt.axis("off")
-
-    plt.subplot(1, 4, 2)
-    plt.imshow(depth, cmap="gray")
-    plt.title("Depth Image")
-    plt.axis("off")
-
-    plt.subplot(1, 4, 3)
-    plt.imshow(gt, cmap="gray")
-    plt.title("Ground Truth")
-    plt.axis("off")
-
-    plt.subplot(1, 4, 4)
-    plt.imshow(pred, cmap="gray")
-    plt.title("Predicted Image")
-    plt.axis("off")
-    plt.show()
-
 # Define the stream model:
 def build_stream(input_shape,stream_name):
     model = models.Sequential(name=stream_name) 
@@ -102,7 +77,7 @@ gt_images = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), gt_size), cv2.CO
 print("Images resized.")  
 
 # Split the dataset into training and validation sets
-RGB_train, RGB_valid, depth_train, depth_valid, GT_train, GT_valid=train_test_split(rgb_images, depth_images, gt_images, test_size=0.2, random_state=42)  
+RGB_train, RGB_valid, depth_train, depth_valid, GT_train, GT_valid=train_test_split(rgb_images, depth_images, gt_images, test_size=0.2)  
 
 # Build the fusion model
 model = build_fusion_model((img_size[0], img_size[1], 3), (img_size[0], img_size[1], 1))
@@ -111,13 +86,15 @@ model = build_fusion_model((img_size[0], img_size[1], 3), (img_size[0], img_size
 history = model.fit(
     [RGB_train, depth_train],  # Training data
     GT_train, # Ground truth labels
-    epochs=10,
-    batch_size=16, 
+    epochs=30,
+    batch_size=16,  
+    shuffle=True, 
+   
     validation_data=([RGB_valid, depth_valid], GT_valid)  
 )  
 
 # Save the model
-model.save("fusion_model_with_dropout.h5")
+model.save("fusion_model_with_dropout_30epoc.h5")
 
 # Evaluate the model 
 loss, accuracy = model.evaluate([RGB_valid, depth_valid], GT_valid) 
@@ -146,7 +123,4 @@ plt.title('Training and Validation Loss')
 plt.legend()
 
 plt.show()
-
-#plot the training and validation accuracy and loss at each epoch 
-plot_image(RGB_valid[0], depth_valid[0], GT_valid[0], model.predict([RGB_valid[0], depth_valid[0]]))
 
