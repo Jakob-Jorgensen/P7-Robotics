@@ -33,8 +33,6 @@ def build_stream(input_shape,stream_name):
 
 # Define the fusion model:
 def build_fusion_model(rgb_shape, depth_shape):  
-    print(depth_shape) 
-    print(rgb_shape)
     # Define the inputs
     rgb_input = layers.Input(shape=rgb_shape, name='rgb_input')
     depth_input = layers.Input(shape=depth_shape, name='depth_input')
