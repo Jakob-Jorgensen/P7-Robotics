@@ -92,7 +92,7 @@ history = model.fit(
 )  
 
 # Save the model
-model.save("Saliency_model.h5")
+model.save("Saliency_model.keras")
 
 # Evaluate the model 
 loss, accuracy = model.evaluate([RGB_valid, depth_valid], GT_valid) 
