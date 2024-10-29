@@ -9,7 +9,7 @@ import os, glob
 mode_swith = 1
 
 print("Loading the model...") 
-model = models.load_model('Saliency_model.keras') 
+model = models.load_model('jakob_Playground_model.keras') 
 print("Model loaded.") 
 
 
@@ -118,27 +118,6 @@ elif mode_swith == 2:
     best_f1 = f1_scores[best_f1_index] 
     best_threshold = thresholds[best_f1_index] 
     print(f"Best F1 Score: {best_f1} at thredshold {best_threshold} " )  
-
-
-    plt.figure(figsize=(14, 5))
-
-    # Plot accuracy
-    plt.subplot(1, 2, 1)
-    plt.plot(y_scores, label='Training Accuracy')
-    plt.plot(y_true_binary, label='Validation Accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
-    plt.title('Training and Validation Accuracy')
-    plt.legend()
-
-    # Plot loss
-    plt.subplot(1, 2, 2)
-    plt.plot(img_size, label='Training Loss')
-    plt.plot(gt_size, label='Validation Loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.title('Training and Validation Loss')
-    plt.legend() 
 
     plt.figure(figsize=(8, 6)) 
     plt.plot(recall, precision, label='Precision-Recall Curve')  
