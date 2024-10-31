@@ -1,57 +1,103 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
 import cv2
 import sys
 import os
 import subprocess
-import time
+import numpy as np
 
 class DualStreamRecorder(Node):
-    def __init__(self, bag_name, play_process):
+    def __init__(self, bag_name):
         super().__init__('dual_stream_recorder')
 
-        # Initialize OpenCV Bridge and store bag playback process
+        # Initialize OpenCV Bridge
         self.bridge = CvBridge()
-        self.play_process = play_process
         
         # Use the bag name as a prefix for video files
         self.bag_name = bag_name
 
-        # Set up subscribers for each stream
+        # Set up subscribers for each stream and camera info topics
         self.subscription1 = self.create_subscription(
             Image,
-            '/camera/depth/image_rect_raw',  # Topic for depth stream
+            '/camera/depth/image_rect_raw',
             self.image_callback1,
             10
         )
         self.subscription2 = self.create_subscription(
             Image,
-            '/camera/color/image_raw',  # Topic for color stream
+            '/camera/color/image_raw',
             self.image_callback2,
             10
         )
+        self.depth_info_sub = self.create_subscription(
+            CameraInfo,
+            '/camera/depth/camera_info',
+            self.depth_camera_info_callback,
+            10
+        )
+        self.color_info_sub = self.create_subscription(
+            CameraInfo,
+            '/camera/color/camera_info',
+            self.color_camera_info_callback,
+            10
+        )
 
-        # VideoWriter placeholders (initialized on first frame)
+        # VideoWriter placeholders
         self.out1 = None  # For depth stream
         self.out2 = None  # For color stream
-        self.frame_rate = 30.0  # Set the frame rate to 30 FPS
+
+        # Set fixed frame rate
+        self.frame_rate = 30.0
+
+        # Initialize intrinsic matrices and distortion coefficients for depth and color
+        self.K_depth = None
+        self.D_depth = None
+        self.K_color = None
+        self.D_color = None
+
+        # Frame dimensions for depth and color
+        self.frame_width_depth = None
+        self.frame_height_depth = None
+        self.frame_width_color = None
+        self.frame_height_color = None
+
+    def depth_camera_info_callback(self, msg):
+        if self.K_depth is None:
+            self.K_depth = np.array(msg.k, dtype=np.float32).reshape((3, 3))  # Intrinsic matrix for depth
+            self.D_depth = np.array(msg.d[:5], dtype=np.float32)               # Distortion coefficients for depth
+            self.frame_width_depth = int(msg.width)
+            self.frame_height_depth = int(msg.height)
+            self.get_logger().info(f'Depth Intrinsic Matrix (K_depth):\n{self.K_depth}')
+            self.get_logger().info(f'Depth Distortion Coefficients (D_depth):\n{self.D_depth}')
+
+    def color_camera_info_callback(self, msg):
+        if self.K_color is None:
+            self.K_color = np.array(msg.k, dtype=np.float32).reshape((3, 3))  # Intrinsic matrix for color
+            self.D_color = np.array(msg.d[:5], dtype=np.float32)               # Distortion coefficients for color
+            self.frame_width_color = int(msg.width)
+            self.frame_height_color = int(msg.height)
+            self.get_logger().info(f'Color Intrinsic Matrix (K_color):\n{self.K_color}')
+            self.get_logger().info(f'Color Distortion Coefficients (D_color):\n{self.D_color}')
+
+    def initialize_video_writer(self, stream_name, width, height):
+        width, height = int(width), int(height)
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        filename = f'{self.bag_name}_{stream_name}_stream.mp4'
+        video_writer = cv2.VideoWriter(filename, fourcc, self.frame_rate, (width, height))
+        self.get_logger().info(f'Started recording {stream_name} stream to {filename} at {self.frame_rate} FPS with resolution {width}x{height}.')
+        return video_writer
 
     def image_callback1(self, msg):
         try:
-            # Convert "depth" image to BGR format directly
             depth_bgr = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
-            height, width = depth_bgr.shape[:2]
+            if self.K_depth is not None and self.D_depth is not None:
+                depth_bgr = cv2.undistort(depth_bgr, self.K_depth, self.D_depth)
 
-            # Initialize VideoWriter for depth stream with the correct resolution and frame rate
             if self.out1 is None:
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                depth_filename = f'{self.bag_name}_Depth_stream_bgr.mp4'
-                self.out1 = cv2.VideoWriter(depth_filename, fourcc, self.frame_rate, (width, height))
-                self.get_logger().info(f'Started recording depth stream to {depth_filename} with resolution {width}x{height} at {self.frame_rate} FPS.')
+                self.out1 = self.initialize_video_writer("Depth", self.frame_width_depth, self.frame_height_depth)
 
-            # Write BGR depth frame to file
             self.out1.write(depth_bgr)
 
         except Exception as e:
@@ -59,25 +105,24 @@ class DualStreamRecorder(Node):
 
     def image_callback2(self, msg):
         try:
-            # Convert ROS Image message to OpenCV color image in BGR format directly
+            # Ensure frame dimensions are set before processing
+            if self.frame_width_color is None or self.frame_height_color is None:
+                self.get_logger().warn('Color frame dimensions are not set. Waiting for camera info.')
+                return
+
             color_frame = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
-            height, width = color_frame.shape[:2]
+            if self.K_color is not None and self.D_color is not None:
+                color_frame = cv2.undistort(color_frame, self.K_color, self.D_color)
 
-            # Initialize VideoWriter for color stream with the correct resolution and frame rate
             if self.out2 is None:
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                color_filename = f'{self.bag_name}_Color_stream.mp4'
-                self.out2 = cv2.VideoWriter(color_filename, fourcc, self.frame_rate, (width, height))
-                self.get_logger().info(f'Started recording color stream to {color_filename} with resolution {width}x{height} at {self.frame_rate} FPS.')
+                self.out2 = self.initialize_video_writer("Color", self.frame_width_color, self.frame_height_color)
 
-            # Write frame to file
             self.out2.write(color_frame)
 
         except Exception as e:
             self.get_logger().error(f'Error processing color image: {e}')
 
     def stop_recording(self):
-        # Release VideoWriters when recording is done
         if self.out1 is not None:
             self.out1.release()
             self.get_logger().info('Stopped recording depth stream.')
@@ -85,49 +130,37 @@ class DualStreamRecorder(Node):
             self.out2.release()
             self.get_logger().info('Stopped recording color stream.')
 
-def process_bag(bag_path):
-    # Get the bag file name without extension
+def start_recording(bag_path):
     bag_name = os.path.splitext(os.path.basename(bag_path))[0]
-    
-    # Run the ros2 bag play command in a subprocess
-    play_command = ['ros2', 'bag', 'play', bag_path]
+    play_command = ['ros2', 'bag', 'play', bag_path, '--rate', '1.0']
     play_process = subprocess.Popen(play_command)
 
-    # Initialize ROS 2 context and node for each bag, passing the playback process
     rclpy.init()
-    recorder = DualStreamRecorder(bag_name, play_process)
+    recorder = DualStreamRecorder(bag_name)
 
     try:
-        # Continuously check if bag playback is still running
         while rclpy.ok() and play_process.poll() is None:
             rclpy.spin_once(recorder, timeout_sec=0.1)
-            time.sleep(0.1)  # Add a small delay to reduce CPU usage
-
     except KeyboardInterrupt:
         recorder.get_logger().info('Recording interrupted by user.')
     finally:
-        # Stop recording and clean up
         recorder.stop_recording()
         recorder.destroy_node()
-
-        # Ensure the bag play process is terminated if it's still running
         play_process.terminate()
         play_process.wait()
 
-        rclpy.shutdown()
+    rclpy.shutdown()
 
 def main():
-    # Get list of bag files from command-line arguments
     bag_files = sys.argv[1:]
     
     if not bag_files:
-        print("Usage: ros2 run <your_package> <your_node> <bag_name1> <bag_name2> ...")
+        print("Usage: ros2 run vision_toolbox Bag2mp4.Converter <bag_name1> <bag_name2> ...")
         sys.exit(1)
 
-    # Process each bag file sequentially
     for bag_path in bag_files:
         print(f"Processing bag file: {bag_path}")
-        process_bag(bag_path)
+        start_recording(bag_path)
 
 if __name__ == '__main__':
     main()
