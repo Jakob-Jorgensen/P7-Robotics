@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
 import cv2
@@ -7,128 +8,182 @@ import sys
 import os
 import subprocess
 import numpy as np
+from collections import deque
+
 
 class DualStreamRecorder(Node):
     def __init__(self, bag_name):
         super().__init__('dual_stream_recorder')
-
-        # Initialize OpenCV Bridge
         self.bridge = CvBridge()
-        
-        # Use the bag name as a prefix for video files
         self.bag_name = bag_name
+        self.resize_dim = (640, 480)  # Set resize dimensions
 
-        # Set up subscribers for each stream and camera info topics
+        # Define a default QoS profile
+        qos_profile = QoSProfile(depth=10)
+
+        # Subscribers for each stream and camera info topics
         self.subscription1 = self.create_subscription(
             Image,
             '/camera/depth/image_rect_raw',
             self.image_callback1,
-            10
+            qos_profile
         )
         self.subscription2 = self.create_subscription(
             Image,
             '/camera/color/image_raw',
             self.image_callback2,
-            10
+            qos_profile
         )
         self.depth_info_sub = self.create_subscription(
             CameraInfo,
             '/camera/depth/camera_info',
             self.depth_camera_info_callback,
-            10
+            qos_profile
         )
         self.color_info_sub = self.create_subscription(
             CameraInfo,
             '/camera/color/camera_info',
             self.color_camera_info_callback,
-            10
+            qos_profile
         )
 
-        # VideoWriter placeholders
-        self.out1 = None  # For depth stream
-        self.out2 = None  # For color stream
+        # VideoWriter placeholders for raw streams
+        self.raw_depth_writer = None
+        self.raw_color_writer = None
 
-        # Set fixed frame rate
-        self.frame_rate = 30.0
+        # Flags and intrinsic parameters for undistortion
+        self.depth_info_ready = False
+        self.color_info_ready = False
+        self.K_depth = self.D_depth = None
+        self.K_color = self.D_color = None
 
-        # Initialize intrinsic matrices and distortion coefficients for depth and color
-        self.K_depth = None
-        self.D_depth = None
-        self.K_color = None
-        self.D_color = None
+        # Frame queues for synchronization
+        self.depth_queue = deque()
+        self.color_queue = deque()
 
-        # Frame dimensions for depth and color
-        self.frame_width_depth = None
-        self.frame_height_depth = None
-        self.frame_width_color = None
-        self.frame_height_color = None
+        # Temporary storage paths
+        self.raw_depth_path = f'{self.bag_name}_raw_depth_stream.mp4'
+        self.raw_color_path = f'{self.bag_name}_raw_color_stream.mp4'
 
     def depth_camera_info_callback(self, msg):
-        if self.K_depth is None:
-            self.K_depth = np.array(msg.k, dtype=np.float32).reshape((3, 3))  # Intrinsic matrix for depth
-            self.D_depth = np.array(msg.d[:5], dtype=np.float32)               # Distortion coefficients for depth
-            self.frame_width_depth = int(msg.width)
-            self.frame_height_depth = int(msg.height)
-            self.get_logger().info(f'Depth Intrinsic Matrix (K_depth):\n{self.K_depth}')
-            self.get_logger().info(f'Depth Distortion Coefficients (D_depth):\n{self.D_depth}')
+        if not self.depth_info_ready:
+            self.K_depth = np.array(msg.k, dtype=np.float32).reshape((3, 3))
+            self.D_depth = np.array(msg.d[:5], dtype=np.float32)
+            self.depth_info_ready = True
+            self.get_logger().info('Depth Camera Info ready') 
+
 
     def color_camera_info_callback(self, msg):
-        if self.K_color is None:
-            self.K_color = np.array(msg.k, dtype=np.float32).reshape((3, 3))  # Intrinsic matrix for color
-            self.D_color = np.array(msg.d[:5], dtype=np.float32)               # Distortion coefficients for color
-            self.frame_width_color = int(msg.width)
-            self.frame_height_color = int(msg.height)
-            self.get_logger().info(f'Color Intrinsic Matrix (K_color):\n{self.K_color}')
-            self.get_logger().info(f'Color Distortion Coefficients (D_color):\n{self.D_color}')
+        if not self.color_info_ready:
+            self.K_color = np.array(msg.k, dtype=np.float32).reshape((3, 3))
+            self.D_color = np.array(msg.d[:5], dtype=np.float32)
+            self.color_info_ready = True
+            self.get_logger().info('Color Camera Info ready')
 
-    def initialize_video_writer(self, stream_name, width, height):
-        width, height = int(width), int(height)
+    def initialize_raw_writer(self, path, width, height):
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        filename = f'{self.bag_name}_{stream_name}_stream.mp4'
-        video_writer = cv2.VideoWriter(filename, fourcc, self.frame_rate, (width, height))
-        self.get_logger().info(f'Started recording {stream_name} stream to {filename} at {self.frame_rate} FPS with resolution {width}x{height}.')
-        return video_writer
+        return cv2.VideoWriter(path, fourcc, 30.0, (width, height))
+
+    def get_timestamp_seconds(self, msg):
+        return msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+
+    def sync_and_write_frames(self): 
+        
+        while self.depth_queue and self.color_queue:
+            depth_msg, depth_frame = self.depth_queue[0]
+            color_msg, color_frame = self.color_queue[0]
+
+            # Get timestamps in seconds
+            depth_timestamp = self.get_timestamp_seconds(depth_msg)
+            color_timestamp = self.get_timestamp_seconds(color_msg)
+
+            # Sync frames within 0.05 seconds tolerance
+            if abs(depth_timestamp - color_timestamp) < 0.05:
+                # Initialize VideoWriters only once
+                if self.raw_depth_writer is None: 
+                    self.get_logger().info(f'Initializing Depth Stream VideoWriter with resolution {depth_frame.shape[1]}x{depth_frame.shape[0]}.')
+                    self.raw_depth_writer = self.initialize_raw_writer(self.raw_depth_path, depth_frame.shape[1], depth_frame.shape[0]) 
+                    
+                if self.raw_color_writer is None: 
+                    self.get_logger().info(f'Initializing Color Stream VideoWriter with resolution {color_frame.shape[1]}x{color_frame.shape[0]}.')
+                    self.raw_color_writer = self.initialize_raw_writer(self.raw_color_path, color_frame.shape[1], color_frame.shape[0])
+
+                # Write synchronized frames
+                self.raw_depth_writer.write(depth_frame)
+                self.raw_color_writer.write(color_frame)
+                
+
+                # Pop frames from both queues
+                self.depth_queue.popleft()
+                self.color_queue.popleft()
+            else:
+                # If frames are out of sync, discard the older frame
+                if depth_timestamp < color_timestamp:
+                    self.depth_queue.popleft()
+                else:
+                    self.color_queue.popleft()
 
     def image_callback1(self, msg):
         try:
-            depth_bgr = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
-            if self.K_depth is not None and self.D_depth is not None:
-                depth_bgr = cv2.undistort(depth_bgr, self.K_depth, self.D_depth)
-
-            if self.out1 is None:
-                self.out1 = self.initialize_video_writer("Depth", self.frame_width_depth, self.frame_height_depth)
-
-            self.out1.write(depth_bgr)
-
+            depth_frame = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
+            self.depth_queue.append((msg, depth_frame)) 
+            
+            self.sync_and_write_frames()
         except Exception as e:
             self.get_logger().error(f'Error processing depth image: {e}')
 
     def image_callback2(self, msg):
         try:
-            # Ensure frame dimensions are set before processing
-            if self.frame_width_color is None or self.frame_height_color is None:
-                self.get_logger().warn('Color frame dimensions are not set. Waiting for camera info.')
-                return
-
             color_frame = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
-            if self.K_color is not None and self.D_color is not None:
-                color_frame = cv2.undistort(color_frame, self.K_color, self.D_color)
-
-            if self.out2 is None:
-                self.out2 = self.initialize_video_writer("Color", self.frame_width_color, self.frame_height_color)
-
-            self.out2.write(color_frame)
-
+            self.color_queue.append((msg, color_frame)) 
+            self.sync_and_write_frames()
         except Exception as e:
             self.get_logger().error(f'Error processing color image: {e}')
 
     def stop_recording(self):
-        if self.out1 is not None:
-            self.out1.release()
-            self.get_logger().info('Stopped recording depth stream.')
-        if self.out2 is not None:
-            self.out2.release()
-            self.get_logger().info('Stopped recording color stream.')
+        if self.raw_depth_writer:
+            self.raw_depth_writer.release()
+            self.get_logger().info('Stopped raw depth recording.')
+
+        if self.raw_color_writer:
+            self.raw_color_writer.release()
+            self.get_logger().info('Stopped raw color recording.')
+
+    def undistort_and_resize(self, input_path, output_path, K, D):
+        cap = cv2.VideoCapture(input_path)
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(output_path, fourcc, 30.0, self.resize_dim)
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            # Apply undistortion directly
+            undistorted = cv2.undistort(frame, K, D)
+
+            # Resize to target dimensions if specified
+            resized_frame = cv2.resize(undistorted, self.resize_dim)
+            out.write(resized_frame)
+
+        cap.release()
+        out.release()
+        self.get_logger().info(f'Processed video saved as {output_path}')
+
+    def process_videos(self):
+        # Process depth and color videos after recording
+        if self.depth_info_ready:
+            self.undistort_and_resize(self.raw_depth_path, f'{self.bag_name}_processed_depth_stream.mp4', self.K_depth, self.D_depth)
+        if self.color_info_ready:
+            self.undistort_and_resize(self.raw_color_path, f'{self.bag_name}_processed_color_stream.mp4', self.K_color, self.D_color)
+
+        # Delete raw video files
+        if os.path.exists(self.raw_depth_path):
+            os.remove(self.raw_depth_path)
+            self.get_logger().info(f'Deleted raw depth video: {self.raw_depth_path}')
+        if os.path.exists(self.raw_color_path):
+            os.remove(self.raw_color_path)
+            self.get_logger().info(f'Deleted raw color video: {self.raw_color_path}')
 
 def start_recording(bag_path):
     bag_name = os.path.splitext(os.path.basename(bag_path))[0]
@@ -149,13 +204,14 @@ def start_recording(bag_path):
         play_process.terminate()
         play_process.wait()
 
+    # Post-process the videos
+    recorder.process_videos()
     rclpy.shutdown()
 
 def main():
     bag_files = sys.argv[1:]
-    
     if not bag_files:
-        print("Usage: ros2 run vision_toolbox Bag2mp4.Converter <bag_name1> <bag_name2> ...")
+        print("Usage: ros2 run vision_toolbox Bag2mp4.converter  <bag_name1> <bag_name2> ... or all bags in location with *.db3 ")
         sys.exit(1)
 
     for bag_path in bag_files:
