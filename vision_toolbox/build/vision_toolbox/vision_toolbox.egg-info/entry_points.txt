@@ -1,0 +1,3 @@
+[console_scripts]
+Bag2png.Converter = vision_toolbox.converter:main
+

@@ -137,14 +137,14 @@ class DualStreamRecorder(Node):
 
     def save_depth_frame(self, depth_frame):
         output_filename = os.path.join(self.depth_folder, f"depth_{self.depth_frame_count:04d}.png") 
-        #depth_frame = cv2.undistort(depth_frame, self.K_depth, self.D_depth)
+        depth_frame = cv2.undistort(depth_frame, self.K_depth, self.D_depth)
         cv2.imwrite(output_filename, depth_frame)
         self.get_logger().info(f'Saved depth frame as {output_filename}')
         self.depth_frame_count += 1
 
     def save_color_frame(self, color_frame):
         output_filename = os.path.join(self.color_folder, f"color_{self.color_frame_count:04d}.png") 
-        #color_frame = cv2.undistort(color_frame, self.K_color, self.D_color)
+        color_frame = cv2.undistort(color_frame, self.K_color, self.D_color)
         cv2.imwrite(output_filename, color_frame)
         self.get_logger().info(f'Saved color frame as {output_filename}')
         self.color_frame_count += 1

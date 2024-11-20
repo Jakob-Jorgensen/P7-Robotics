@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [ 
-            'Bag2mp4.Converter = ' + package_name+'.converter:main'
+            'Bag2png.Converter = ' + package_name+'.converter:main'
         ],
     },
 )

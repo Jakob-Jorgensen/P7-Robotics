@@ -1,0 +1,22 @@
+running egg_info
+writing ../build/vision_toolbox/vision_toolbox.egg-info/PKG-INFO
+writing dependency_links to ../build/vision_toolbox/vision_toolbox.egg-info/dependency_links.txt
+writing entry points to ../build/vision_toolbox/vision_toolbox.egg-info/entry_points.txt
+writing requirements to ../build/vision_toolbox/vision_toolbox.egg-info/requires.txt
+writing top-level names to ../build/vision_toolbox/vision_toolbox.egg-info/top_level.txt
+reading manifest file '../build/vision_toolbox/vision_toolbox.egg-info/SOURCES.txt'
+writing manifest file '../build/vision_toolbox/vision_toolbox.egg-info/SOURCES.txt'
+running build
+running build_py
+copying vision_toolbox/converter.py -> /home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/build/lib/vision_toolbox
+running install
+running install_lib
+copying /home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/build/lib/vision_toolbox/converter.py -> /home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/python3.8/site-packages/vision_toolbox
+byte-compiling /home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/python3.8/site-packages/vision_toolbox/converter.py to converter.cpython-38.pyc
+running install_data
+running install_egg_info
+removing '/home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/python3.8/site-packages/vision_toolbox-0.0.0-py3.8.egg-info' (and everything under it)
+Copying ../build/vision_toolbox/vision_toolbox.egg-info to /home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/python3.8/site-packages/vision_toolbox-0.0.0-py3.8.egg-info
+running install_scripts
+Installing Bag2png.Converter script to /home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/vision_toolbox
+writing list of installed files to '/home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/install.log'

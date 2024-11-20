@@ -1,0 +1,24 @@
+[1.115s] Invoking command in '/home/jakob/Desktop/P7-Robotics/vision_toolbox/src': CONDA_PROMPT_MODIFIER=(project_7) PYTHONPATH=/home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/python3.8/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated setup.py egg_info --egg-base ../build/vision_toolbox build --build-base /home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/build install --record /home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/install.log --single-version-externally-managed install_data
+[1.310s] running egg_info
+[1.310s] writing ../build/vision_toolbox/vision_toolbox.egg-info/PKG-INFO
+[1.310s] writing dependency_links to ../build/vision_toolbox/vision_toolbox.egg-info/dependency_links.txt
+[1.311s] writing entry points to ../build/vision_toolbox/vision_toolbox.egg-info/entry_points.txt
+[1.311s] writing requirements to ../build/vision_toolbox/vision_toolbox.egg-info/requires.txt
+[1.311s] writing top-level names to ../build/vision_toolbox/vision_toolbox.egg-info/top_level.txt
+[1.348s] reading manifest file '../build/vision_toolbox/vision_toolbox.egg-info/SOURCES.txt'
+[1.349s] writing manifest file '../build/vision_toolbox/vision_toolbox.egg-info/SOURCES.txt'
+[1.349s] running build
+[1.350s] running build_py
+[1.350s] copying vision_toolbox/converter.py -> /home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/build/lib/vision_toolbox
+[1.350s] running install
+[1.351s] running install_lib
+[1.351s] copying /home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/build/lib/vision_toolbox/converter.py -> /home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/python3.8/site-packages/vision_toolbox
+[1.352s] byte-compiling /home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/python3.8/site-packages/vision_toolbox/converter.py to converter.cpython-38.pyc
+[1.354s] running install_data
+[1.354s] running install_egg_info
+[1.356s] removing '/home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/python3.8/site-packages/vision_toolbox-0.0.0-py3.8.egg-info' (and everything under it)
+[1.357s] Copying ../build/vision_toolbox/vision_toolbox.egg-info to /home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/python3.8/site-packages/vision_toolbox-0.0.0-py3.8.egg-info
+[1.358s] running install_scripts
+[1.373s] Installing Bag2png.Converter script to /home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/vision_toolbox
+[1.373s] writing list of installed files to '/home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/install.log'
+[1.390s] Invoked command in '/home/jakob/Desktop/P7-Robotics/vision_toolbox/src' returned '0': CONDA_PROMPT_MODIFIER=(project_7) PYTHONPATH=/home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/jakob/Desktop/P7-Robotics/vision_toolbox/install/vision_toolbox/lib/python3.8/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated setup.py egg_info --egg-base ../build/vision_toolbox build --build-base /home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/build install --record /home/jakob/Desktop/P7-Robotics/vision_toolbox/build/vision_toolbox/install.log --single-version-externally-managed install_data
