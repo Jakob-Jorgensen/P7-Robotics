@@ -1,5 +1,7 @@
 from keras import models, layers
 from sklearn.model_selection import train_test_split  
+from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import average_precision_score
 import matplotlib.pyplot as plt 
 import os, glob
 import numpy as np   
@@ -17,24 +19,26 @@ def build_stream(input_shape,stream_name):
     model.add(layers.Conv2D(96, (11,11), activation='relu',padding='valid',strides=4))
     model.add(layers.MaxPooling2D((3, 3),strides=1))
     model.add(layers.BatchNormalization())
+    model.add(layers.Dropout(0.5))
 
     model.add(layers.Conv2D(256, (5, 5),strides=1, dilation_rate=2, activation='relu',padding='same')) 
     model.add(layers.MaxPooling2D((3, 3),strides=1))
     model.add(layers.BatchNormalization())
+    model.add(layers.Dropout(0.5))
 
-    model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same'))
-    model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same')) 
+    #model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same'))
+    #model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same')) 
 
-    model.add(layers.Conv2D(256, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same'))   
+    #model.add(layers.Conv2D(256, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same'))   
  
-    model.add(layers.Dropout(0.5))  
-    model.add(layers.Conv2D(1, (1, 1), activation='sigmoid')) 
+    #model.add(layers.Dropout(0.5))  
+    #model.add(layers.Conv2D(1, (1, 1), activation='sigmoid')) 
 
     # Upsampling
     model.add(layers.Conv2DTranspose(128, (4, 4), activation='relu', strides=2, padding='same'))  # 50 -> 100
     model.add(layers.Conv2DTranspose(64, (4, 4), activation='relu', strides=2, padding='same'))   # 100 -> 200
-    model.add(layers.Conv2DTranspose(32, (13, 13), activation='relu', strides=1, padding='valid'))  
-    model.add(layers.Conv2DTranspose(3, (13, 13), activation='sigmoid', strides=1, padding='valid'))  
+    #model.add(layers.Conv2DTranspose(32, (13, 13), activation='relu', strides=1, padding='valid'))  
+    model.add(layers.Conv2DTranspose(3, (25, 25), activation='sigmoid', strides=1, padding='valid'))  
     model.summary()
 
     return model 
@@ -116,7 +120,7 @@ history = model.fit(
 model.save("jakob_Playground_model.keras")
 
 # Evaluate the model 
-loss, accuracy = model.evaluate([RGB_valid, depth_valid], GT_valid,batch_size=batchsize,training=False) 
+loss, accuracy = model.evaluate([RGB_valid, depth_valid], GT_valid) 
 print("Loss: ", loss) 
 print("Accuracy: ", accuracy)   
 
