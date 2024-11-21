@@ -1,6 +1,5 @@
 from keras import models, layers
 from sklearn.model_selection import train_test_split  
-#from tensorflow.keras.callbacks import EarlyStopping
 import matplotlib.pyplot as plt 
 import os, glob
 import numpy as np   
@@ -29,6 +28,7 @@ def build_stream(input_shape,stream_name):
     model.add(layers.Conv2D(256, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same'))   
  
     model.add(layers.Dropout(0.5))  
+    model.add(layers.Conv2D(1, (1, 1), activation='sigmoid')) 
 
     # Upsampling
     model.add(layers.Conv2DTranspose(128, (4, 4), activation='relu', strides=2, padding='same'))  # 50 -> 100
@@ -113,12 +113,29 @@ history = model.fit(
 )  
 
 # Save the model
-model.save("Saliency_model.keras")
+model.save("jakob_Playground_model.keras")
 
 # Evaluate the model 
 loss, accuracy = model.evaluate([RGB_valid, depth_valid], GT_valid,batch_size=batchsize,training=False) 
 print("Loss: ", loss) 
-print("Accuracy: ", accuracy)  
+print("Accuracy: ", accuracy)   
+
+
+
+y_true = GT_valid.flatten()   
+y_true_binary = (y_true > 0.5).astype(int)  # Convert to binary values 
+y_scores = model.predict([RGB_valid, depth_valid]).flatten()  # Predict saliency maps and flatten   
+
+precision, recall, thresholds = precision_recall_curve(y_true_binary, y_scores)  
+average_precision = average_precision_score(y_true_binary, y_scores) 
+print("Average Precision: ", average_precision) 
+f1_scores = 2 * (precision * recall) / (precision + recall+ 1e-8) # makes sure we dont divide by zero 
+
+
+best_f1_index = np.argmax(f1_scores) 
+best_f1 = f1_scores[best_f1_index] 
+best_threshold = thresholds[best_f1_index] 
+print(f"Best F1 Score: {best_f1} at thredshold {best_threshold} " )  
 
 # Plot the training and validation accuracy and loss at each epoch
 plt.figure(figsize=(14, 5))
@@ -146,7 +163,15 @@ plt.xlim(0,epoch-1)
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.title('Training and Validation Loss')
-plt.legend()
+plt.legend() 
+
+plt.figure(figsize=(8, 6)) 
+plt.plot(recall, precision, label='Precision-Recall Curve')  
+plt.xlabel('Recall') 
+plt.ylabel('Precision') 
+plt.grid() 
+plt.show() 
+
 
 plt.show()
 
