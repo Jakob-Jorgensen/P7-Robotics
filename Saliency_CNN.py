@@ -16,15 +16,15 @@ def build_stream(input_shape,stream_name):
 
     model.add(layers.Input(shape=input_shape)) 
 
-    model.add(layers.Conv2D(96, (11,11), activation='relu',padding='valid',strides=4))
-    model.add(layers.MaxPooling2D((3, 3),strides=1))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Dropout(0.5))
-
-    model.add(layers.Conv2D(256, (5, 5),strides=1, dilation_rate=2, activation='relu',padding='same')) 
-    model.add(layers.MaxPooling2D((3, 3),strides=1))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Dropout(0.5))
+    model.add(layers.Conv2D(2, (3,3), activation='relu'))
+    #model.add(layers.MaxPooling2D((3, 3),strides=1))
+    #model.add(layers.BatchNormalization())
+    #model.add(layers.Dropout(0.5))
+   
+    #model.add(layers.Conv2D(256, (5, 5),strides=1, dilation_rate=2, activation='relu',padding='same')) 
+    #model.add(layers.MaxPooling2D((3, 3),strides=1))
+    #model.add(layers.BatchNormalization())
+    #model.add(layers.Dropout(0.5))
 
     #model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same'))
     #model.add(layers.Conv2D(384, (3, 3), dilation_rate=4, activation='relu',strides=1,padding='same')) 
@@ -35,10 +35,10 @@ def build_stream(input_shape,stream_name):
     #model.add(layers.Conv2D(1, (1, 1), activation='sigmoid')) 
 
     # Upsampling
-    model.add(layers.Conv2DTranspose(128, (4, 4), activation='relu', strides=2, padding='same'))  # 50 -> 100
-    model.add(layers.Conv2DTranspose(64, (4, 4), activation='relu', strides=2, padding='same'))   # 100 -> 200
-    #model.add(layers.Conv2DTranspose(32, (13, 13), activation='relu', strides=1, padding='valid'))  
-    model.add(layers.Conv2DTranspose(3, (25, 25), activation='sigmoid', strides=1, padding='valid'))  
+    #model.add(layers.Conv2DTranspose(128, (4, 4), activation='relu', strides=2, padding='same'))  # 50 -> 100
+    #model.add(layers.Conv2DTranspose(64, (4, 4), activation='relu', strides=2, padding='same'))   # 100 -> 200
+    ##model.add(layers.Conv2DTranspose(32, (17, 17), activation='relu', strides=1, padding='valid'))  
+    model.add(layers.Conv2DTranspose(3, (3, 3), activation='sigmoid', strides=1, padding='valid'))  
     model.summary()
 
     return model 
@@ -72,12 +72,12 @@ def build_fusion_model(rgb_shape, depth_shape):
     return model
 
 # Paths to the dataset
-rgb_train_dir = sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Testing\RGB\*.png")))
-rgb_valid_dir = sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Validation\RGB\*.png")))
-depth_train_dir = sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Testing\HHA\*.png")))
-depth_valid_dir = sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Validation\HHA\*.png")))
-gt_train_dir =sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Testing\GT\*.png")) )
-gt_valid_dir =sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Validation\GT\*.png")) )
+rgb_train_dir = sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Testing\RGB", '*.png')))
+rgb_valid_dir = sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Validation\RGB", '*.png')))
+depth_train_dir = sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Testing\HHA", '*.png')))
+depth_valid_dir = sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Validation\HHA", '*.png')))
+gt_train_dir =sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Testing\GT", '*.png')) )
+gt_valid_dir =sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Validation\GT", '*.png')) )
 
 # Define the image sizes
 img_size = (224, 224)
@@ -93,17 +93,27 @@ gt_size = (224,224)
 print("Resizing images...")
 RGB_train = np.array([cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0 for file in rgb_train_dir]) 
 RGB_valid = np.array([cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0 for file in rgb_valid_dir]) 
-depth_train = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0, cv2.COLOR_RGB2GRAY) for file in depth_train_dir])
-depth_valid = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0, cv2.COLOR_RGB2GRAY) for file in depth_valid_dir])
+depth_train = np.array([cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0 for file in depth_train_dir])
+depth_valid = np.array([cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0 for file in depth_valid_dir])
 GT_train = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), gt_size).astype('float32')/255.0, cv2.COLOR_RGB2GRAY) for file in gt_train_dir])
 GT_valid = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), gt_size).astype('float32')/255.0, cv2.COLOR_RGB2GRAY) for file in gt_valid_dir])
 print("Images resized.")  
+
+#for i in range(len(RGB_train)):
+#    cv2.imshow('rgb', RGB_train[0+i])
+#    cv2.imshow('depth', depth_train[0+i])
+#    cv2.imshow('gt', GT_train[0+i])
+#    cv2.imshow('val1', RGB_valid[0+i])
+#    cv2.imshow('val2', depth_valid[0+i])
+#    cv2.imshow('val3', GT_valid[0+i])
+#    cv2.waitKey(0)
+#    i+1
 
 # Split the dataset into training and validation sets
 #RGB_train, RGB_valid, depth_train, depth_valid, GT_train, GT_valid=train_test_split(rgb_images, depth_images, gt_images, test_size=0.2,shuffle=True)  
 
 # Build the fusion model
-model = build_fusion_model((img_size[0], img_size[1], 3), (img_size[0], img_size[1], 1))
+model = build_fusion_model((img_size[0], img_size[1], 3), (img_size[0], img_size[1], 3))
 
 # Train the model using the optimized dataset
 history = model.fit(
@@ -113,16 +123,15 @@ history = model.fit(
     batch_size=batchsize, 
     validation_freq=1,  
     shuffle=True,
-    validation_data=([RGB_valid, depth_valid], GT_valid)  
-)  
+    validation_data=([RGB_valid, depth_valid], GT_valid))  
 
 # Save the model
 model.save("jakob_Playground_model.keras")
 
 # Evaluate the model 
-loss, accuracy = model.evaluate([RGB_valid, depth_valid], GT_valid) 
-print("Loss: ", loss) 
-print("Accuracy: ", accuracy)   
+#loss, accuracy = model.evaluate([RGB_valid, depth_valid], GT_valid) 
+#print("Loss: ", loss) 
+#print("Accuracy: ", accuracy)   
 
 
 
