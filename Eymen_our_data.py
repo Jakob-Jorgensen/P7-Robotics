@@ -10,67 +10,16 @@ from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
 import pandas as pd 
 
+
+### Settings
+visualize_loaded_data = False
+
 # Defines our loss function using weights
 def weighted_binary_crossentropy(class_weights):
     def loss(y_true, y_pred):
         weights = y_true * class_weights[1] + (1 - y_true) * class_weights[0]
         return tf.reduce_mean(weights * tf.keras.losses.binary_crossentropy(y_true, y_pred))
     return loss
-
-# Preprocessing function to load and preprocess both RGB and Depth images
-def preprocess_image(image_path, target_size):
-    image = cv2.imread(image_path)              # Load the image using OpenCV
-    image = cv2.resize(image, target_size)      # Resize the image using OpenCV
-    image = image.astype('float32') / 255.0  # Normalize the image to range [0, 1]
-    return image
-
-# Load RGB and Depth images from folder
-def load_dataset(rgb_folder, depth_folder, saliency_folder, target_size=(224, 224)):
-    rgb_images, depth_images, saliency_maps = [], [], []    #create empty lists
-
-    rgb_files = sorted(os.listdir(rgb_folder))              #Sorted lists of the files and directories in the specified folders
-    depth_files = sorted(os.listdir(depth_folder))
-    saliency_files = sorted(os.listdir(saliency_folder), reverse = True)
-
-    print(f"Found {len(rgb_files)} RGB images.")            #Printing founded image count from a list length
-    print(f"Found {len(depth_files)} depth images.")
-    print(f"Found {len(saliency_files)} saliency maps.")
-
-    
-    for i, img_file_rgb in enumerate(rgb_files):                #For loop for all images
-        rgb_path = os.path.join(rgb_folder, img_file_rgb) 
-        
-    for j, img_file_depth in enumerate(depth_files):     #Make path for each image 
-        #depth_img_file = img_file.replace('.jpg', '.png')   #Since all our depth and saliency images is png we are changing extensions from jpg to png 
-        depth_path = os.path.join(depth_folder, img_file_depth)
-        
-    
-    for k, img_file_saliency in enumerate(saliency_files):
-        #saliency_img_file = img_file.replace('.jpg', '.png')
-        saliency_path = os.path.join(saliency_folder, img_file_saliency)
-
-
-     # Debugging: Print paths and check file existence
-        if not os.path.exists(rgb_path):
-            print(f"RGB image not found: {rgb_path}")
-            continue
-        if not os.path.exists(depth_path):
-            print(f"Depth image not found: {depth_path}")
-            continue
-        if not os.path.exists(saliency_path):
-            print(f"Saliency map not found: {saliency_path}")
-            continue
-        
-        rgb_image = preprocess_image(rgb_path, target_size)    #Send path and target size to preprocess function
-        depth_image = preprocess_image(depth_path, target_size)
-        saliency_map = preprocess_image(saliency_path, (224,224))
-        saliency_map = saliency_map[:, :, :1]                #Convert saliency maps to single-channel format
-        
-        rgb_images.append(rgb_image)                           #Add preprocessed images to list
-        depth_images.append(depth_image)
-        saliency_maps.append(saliency_map)
-        
-    return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps)    #Convert lists to Numpy arrays as an output
 
 rgb_train_dir = sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Testing\RGB", '*.png')))
 rgb_valid_dir = sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_dataset\Final_dataset\Validation\RGB", '*.png')))
@@ -83,13 +32,6 @@ gt_valid_dir =sorted(glob.glob(os.path.join(r"C:\Users\mikke\Desktop\Final_datas
 img_size = (224, 224)
 gt_size = (224,224)
 
-
-# Loading and resize the images 
-#print("Resizing images...")
-#rgb_images = np.array([cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0 for file in rgb_dir]) 
-#depth_images = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0, cv2.COLOR_RGB2GRAY) for file in depth_dir])  # Reducing the number of channels to 1 
-#gt_images = np.array([cv2.cvtColor(cv2.resize(cv2.imread(file), gt_size).astype('float32')/255.0, cv2.COLOR_RGB2GRAY) for file in gt_dir]) # Reducing the number of channels to 1 
-#print("Images resized.")  
 
 print("Resizing images...")
 rgb_train = np.array([cv2.resize(cv2.imread(file), img_size).astype('float32')/255.0 for file in rgb_train_dir]) 
@@ -120,30 +62,16 @@ print('Finished calculating class weights: ', class_weights)
 
 class_weights_dict = {i: w for i, w in enumerate(class_weights)}
 
-
-#####
-
-# Check dataset shapes 
-#print(f"RGB images shape: {rgb_images.shape}")
-#print(f"Depth images shape: {depth_images.shape}")
-#print(f"Saliency maps shape: {saliency_maps.shape}")
-
-# Split the dataset into training and validation sets (80% train, 20% validation)
-#rgb_train, rgb_val, depth_train, depth_val, saliency_train, saliency_val = train_test_split(
-                                                                            #rgb_images, depth_images, saliency_maps, test_size=0.2, random_state=42)
-
-#for i in range(len(rgb_train)):
-#    cv2.imshow('rgb', rgb_train[0+i])
-#    cv2.imshow('depth', depth_train[0+i])
-#    cv2.imshow('gt', saliency_train[0+i])
-#    cv2.imshow('val1', rgb_val[0+i])
-#    cv2.imshow('val2', depth_val[0+i])
-#    cv2.imshow('val3', saliency_val[0+i])
-#    cv2.waitKey(0)
-#    i+1
-        
-
-
+if visualize_loaded_data == True: 
+    for i in range(len(rgb_train)):
+        cv2.imshow('rgb', rgb_train[0+i])
+        cv2.imshow('depth', depth_train[0+i])
+        cv2.imshow('gt', saliency_train[0+i])
+        cv2.imshow('val1', rgb_val[0+i])
+        cv2.imshow('val2', depth_val[0+i])
+        cv2.imshow('val3', saliency_val[0+i])
+        cv2.waitKey(0)
+        i+1
 
 # Define the CNN architecture for RGB-D saliency detection
 class Saliency(Model):
@@ -241,7 +169,7 @@ optimizer = tf.keras.optimizers.Adam()
 # Compile the model
 model.compile(optimizer=optimizer, loss=weighted_binary_crossentropy(class_weights), metrics=['accuracy'])
 
-#model.load_weights('C:/Users/eymen/Documents/project1/trainmodel.keras')        #Load previosly saved model weights
+# model.load_weights('C:/Users/eymen/Documents/project1/trainmodel.keras')        #Load previosly saved model weights
 
 
 # Train the model
