@@ -131,20 +131,27 @@ class Saliency(Model):
         self.conv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
         self.maxpool1 = layers.MaxPooling2D((3, 3), strides=1)
         self.norm1 =  layers.BatchNormalization() 
-        self.drouput1 = layers.Dropout(0.5) 
+        
 
         self.dilated_conv2 = layers.Conv2D(256, (3, 3), strides=1 , padding='same', dilation_rate=2, activation='relu')
         self.maxpool2 = layers.MaxPooling2D(pool_size=(3, 3), strides=1)
         self.norm2 =  layers.BatchNormalization() 
-        self.droupout2 = layers.Dropout(0.5) 
+        
+        self.dilated_conv3 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
+        self.dilated_conv4 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
+        self.dilated_conv5 = layers.Conv2D(256, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
 
-        self.trapos1 = layers.Conv2DTranspose(128, (3, 3), strides=2, padding='same', activation='relu')  
-        self.trapos2 = layers.Conv2DTranspose(64, (4, 4), strides=2, padding='same', activation='relu') 
-        self.trapos3 = layers.Conv2DTranspose(3, (25, 25), strides=1, padding='valid', activation='sigmoid')
+        self.trapos1 = layers.Conv2DTranspose(128, (3, 3), strides=2, padding='same', activation='relu')  # 50 > 100
+        self.trapos2 = layers.Conv2DTranspose(64, (4, 4), strides=2, padding='same', activation='relu')  # 100 > 200
+        self.trapos3 = layers.Conv2DTranspose(3, (25, 25), strides=1, padding='valid', activation='sigmoid') # 224
 
         # Fusion and final layer
         self.fuse_conv = layers.Conv2D(1, (1, 1), activation='sigmoid') 
         #trash  
+
+
+        self.drouput = layers.Dropout(0.5) 
+
 
         self.trash1 = layers.Conv2D(2, (3,3), activation='relu',padding='valid')
         self.trash2 = layers.MaxPooling2D((3, 3),strides=1)
@@ -160,12 +167,16 @@ class Saliency(Model):
         x = self.conv1(x)
         x = self.maxpool1(x)
         x = self.norm1(x) 
-        x = self.drouput1(x) 
 
         x = self.dilated_conv2(x)
         x = self.maxpool2(x)
         x = self.norm2(x) 
-        x = self.droupout2(x) 
+     
+        x = self.dilated_conv3(x)
+        x = self.dilated_conv4(x)
+        x = self.dilated_conv5(x)
+
+        x = self.drouput(x)
 
         x = self.trapos1(x) 
         x = self.trapos2(x) 
