@@ -9,7 +9,8 @@ from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
 
 ##############################################################
-main_path = f"D:/CNN_Tensorflow_code/Dataset_3.0/Dataset_3.0/"
+main_path = f"D:/CNN_Tensorflow_code/Dataset_3.1/"
+loss_function = 'dice_loss' # Chose between 'dice_loss' if true or 'binary_crossentropy' if false
 epochs = 5  
 If_trash = False # Chose between trash mode or running the real model
 ##############################################################
@@ -223,12 +224,13 @@ model = Saliency()
 # Define loss function and optimizer (Adam)
 #loss_fn = tf.keras.losses.Dice(reduction = 'sum_over_batch_size', name ='dice')
 optimizer = tf.keras.optimizers.Adam()
-#dice_loss_tf=tf.keras.losses.Dice(reduction = 'sum_over_batch_size', name ='dice')  
-#tf.keras.losses.Dice(reduction = 'sum_over_batch_size', name ='dice')
-#import keras 
-#dice_loss_tf=keras.losses.Dice(reduction = 'sum_over_batch_size', name ='dice')
-# Compile the model
-model.compile(optimizer=optimizer, loss=dice_loss, metrics=['accuracy'])
+
+if loss_function == 'dice_loss': 
+    chosen_loss = dice_loss 
+elif loss_function == 'binary_crossentropy':
+    chosen_loss = 'binary_crossentropy'
+
+model.compile(optimizer=optimizer, loss=chosen_loss, metrics=['accuracy'])
 
 #model.load_weights('C:/Users/eymen/Documents/project1/trainmodel.keras')        #Load previosly saved model weights 
 
