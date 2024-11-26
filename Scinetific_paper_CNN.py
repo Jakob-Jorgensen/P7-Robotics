@@ -7,7 +7,12 @@ import numpy as np
 import cv2
 from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
-#import pandas as pd 
+
+##############################################################
+main_path = f"D:/CNN_Tensorflow_code/Dataset_3.0/Dataset_3.0/"
+epochs = 5  
+If_trash = False # Chose between trash mode or running the real model
+##############################################################
 
 def dice_loss(y_true, y_pred, smooth=1e-6):
     y_true = tf.cast(y_true, tf.float32)
@@ -25,10 +30,12 @@ def dice_loss(y_true, y_pred, smooth=1e-6):
 
 
 # Preprocessing function to load and preprocess both RGB and Depth images
-def preprocess_image(image_path, target_size, Binary_image = False):
+def preprocess_image(image_path, target_size, Binary_image = False,BGR2RGB = False):
     image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)              # Load the image using OpenCV 
     if Binary_image == True:                                          #If the image is binary
-        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)                #Convert the image to grayscale
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)                 #Convert the image to grayscale¨
+    elif BGR2RGB == True: 
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     else: 
         image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)   
   
@@ -75,10 +82,10 @@ def load_dataset(rgb_folder, depth_folder, saliency_folder, HHA_folder, target_s
 
 
         
-        rgb_image = preprocess_image(rgb_path, target_size)                                 #Send path and target size to preprocess function
+        rgb_image = preprocess_image(rgb_path, target_size,BGR2RGB=True)                                 #Send path and target size to preprocess function
         depth_image = np.expand_dims(preprocess_image(depth_path, target_size), axis=-1)    #Send path and target size to preprocess function
         saliency_map = preprocess_image(saliency_path, target_size,Binary_image= True)  
-        HHA_image = preprocess_image(HHA_path, target_size)                                 #Send path and target size to preprocess function
+        HHA_image = preprocess_image(HHA_path, target_size,BGR2RGB=True)                                 #Send path and target size to preprocess function
         rgb_images.append(rgb_image)                                                        #Add preprocessed images to list
         depth_images.append(depth_image)                                                    #Add preprocessed depth images to list
         saliency_maps.append(saliency_map)                                                  #Add preprocessed saliency maps to list     
@@ -90,7 +97,7 @@ def load_dataset(rgb_folder, depth_folder, saliency_folder, HHA_folder, target_s
    
 # Dataset folder paths
 #main_path = f"C:/Users/astri/Downloads/Dataset_3.0/Dataset_3.0" 
-main_path = f"D:/CNN_Tensorflow_code/Dataset_3.0/Dataset_3.0/"
+
 rgb_folder = f"{main_path}/Training/RGB"
 depth_folder = f"{main_path}/Training/Depth"
 saliency_folder = f"{main_path}/Training/GT" 
@@ -161,38 +168,37 @@ class Saliency(Model):
 
 
     # Forward pass for RGB stream
+    if If_trash ==  True: 
+        def stream(self, x):
+            x = self.trash1(x)
+            x = self.trash2(x)
+            x = self.trash3(x)
+            x = self.trash4(x)
+            x = self.trash5(x)
+            return x  
+    else:
+        # Forward pass for Depth stream
+        def stream(self, x):
+            x = self.conv1(x)
+            x = self.maxpool1(x)
+            x = self.norm1(x) 
 
-    # Forward pass for Depth stream
-    def stream(self, x):
-        x = self.conv1(x)
-        x = self.maxpool1(x)
-        x = self.norm1(x) 
-
-        x = self.dilated_conv2(x)
-        x = self.maxpool2(x)
-        x = self.norm2(x) 
-     
-        x = self.dilated_conv3(x)
-        x = self.dilated_conv4(x)
-        x = self.dilated_conv5(x)
-
-        x = self.drouput(x)
-
-        x = self.trapos1(x) 
-        x = self.trapos2(x) 
-        x = self.trapos3(x) 
-
-        return x
-    """ 
-    def stream(self, x):
-        x = self.trash1(x)
-        x = self.trash2(x)
-        x = self.trash3(x)
-        x = self.trash4(x)
-        x = self.trash5(x)
+            x = self.dilated_conv2(x)
+            x = self.maxpool2(x)
+            x = self.norm2(x) 
         
-        return x
-    """
+            x = self.dilated_conv3(x)
+            x = self.dilated_conv4(x)
+            x = self.dilated_conv5(x)
+
+            x = self.drouput(x)
+
+            x = self.trapos1(x) 
+            x = self.trapos2(x) 
+            x = self.trapos3(x) 
+
+            return x
+ 
     # Forward pass combining RGB and Depth (HHA) streams
     def call(self, inputs):
         rgb, depth = inputs 
@@ -230,14 +236,34 @@ model.compile(optimizer=optimizer, loss=dice_loss, metrics=['accuracy'])
 history = model.fit(
     [rgb_images, HHA_images],  # Inputs as a list
     saliency_maps,               # Targets
-    epochs=10, 
+    epochs=epochs, 
     batch_size=16,
     validation_data=([rgb_images_val, HHA_images_val], saliency_maps_val)  # Validation data
 )
 
-# Print accuracy after each epoch
-for epoch, acc in enumerate(history.history['accuracy']):
-    print(f"Epoch {epoch+1}: Accuracy: {acc}")
+plt.figure(figsize=(14, 5))
+# Plot accuracy
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy') 
+plt.ylim(0, 1)
+plt.xlim(0,epochs-1)
+plt.title('Training and Validation Accuracy')
+plt.legend()
+
+# Plot loss
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss') 
+plt.ylim(0, 1)
+plt.xlim(0,epochs-1)
+plt.title('Training and Validation Loss')
+plt.legend()  
+
 
 model.summary()
 model.save_weights('trainmodel.weights.h5')                                #Save model
@@ -246,10 +272,10 @@ model.save_weights('trainmodel.weights.h5')                                #Save
 # Function to visualize input and output saliency map
 def visualize_saliency(rgb_img, depth_img,HHA_img, saliency_map, prediction):
 
-    rgb_img1 = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2RGB)
+    
 
     fig, axes = plt.subplots(1, 5, figsize=(16, 8))
-    axes[0].imshow(rgb_img1)
+    axes[0].imshow(rgb_img)
     axes[0].set_title("RGB Image")
     
     axes[1].imshow(depth_img)
@@ -264,7 +290,7 @@ def visualize_saliency(rgb_img, depth_img,HHA_img, saliency_map, prediction):
     axes[4].imshow(prediction[:, :, 0], cmap='gray')
     axes[4].set_title("Predicted Saliency Map")
     
-    plt.show()
+   
 
 # Predict saliency map for a sample image from the validation set
 sample_index = 0  # Change this index to visualize different samples
