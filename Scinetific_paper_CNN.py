@@ -9,11 +9,19 @@ from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
 
 ##############################################################
-main_path = f"D:/CNN_Tensorflow_code/Dataset_3.1/"
-loss_function = 'dice_loss' # Chose between 'dice_loss' if true or 'binary_crossentropy' if false
-epochs = 5  
+main_path = f"C:/Users/mikke/Downloads/Dataset_3.1/Dataset_3.1"
+loss_function = 'binary_crossentropy' # Chose between 'dice_loss' or 'binary_crossentropy'
+epochs = 10  
 If_trash = False # Chose between trash mode or running the real model
 ##############################################################
+
+def weighted_binary_crossentropy(pos_weight, neg_weight):
+    def loss_fn(y_true, y_pred):
+        # Compute binary cross-entropy
+        bce = -(pos_weight * y_true * tf.math.log(y_pred + 1e-8) + 
+                neg_weight * (1 - y_true) * tf.math.log(1 - y_pred + 1e-8))
+        return tf.reduce_mean(bce)
+    return loss_fn
 
 def dice_loss(y_true, y_pred, smooth=1e-6):
     y_true = tf.cast(y_true, tf.float32)
@@ -117,7 +125,8 @@ HHA_folder_test = f"{main_path}/Testing/HHA"
 # Load the dataset
 rgb_images, depth_images, saliency_maps,HHA_images = load_dataset(rgb_folder, depth_folder, saliency_folder,HHA_folder)   #Send folder paths to load dataset function
 rgb_images_val, depth_images_val, saliency_maps_val,HHA_images_val = load_dataset(rgb_folder_val, depth_folder_val, saliency_folder_val,HHA_folder_val)
-rgb_images_test, depth_images_test, saliency_maps_test,HHA_images_test = load_dataset(rgb_folder_test, depth_folder_test, saliency_folder_test,HHA_folder_test)
+
+# rgb_images_test, depth_images_test, saliency_maps_test,HHA_images_test = load_dataset(rgb_folder_test, depth_folder_test, saliency_folder_test,HHA_folder_test)
 
 
 # Check dataset shapes
@@ -130,6 +139,9 @@ print(f"HHA images shape: {HHA_images.shape}")
 #rgb_train, rgb_val, depth_train, depth_val, saliency_train, saliency_val = train_test_split(
 #                                                                            rgb_images, depth_images, saliency_maps, test_size=0.2, random_state=42)
 
+
+pos_weight = np.mean(1 - saliency_maps)  # Mean of non-salient (background) pixels
+neg_weight = np.mean(saliency_maps) 
 
 # Define the CNN architecture for RGB-D saliency detection
 class Saliency(Model):
@@ -226,11 +238,13 @@ model = Saliency()
 optimizer = tf.keras.optimizers.Adam()
 
 if loss_function == 'dice_loss': 
-    chosen_loss = dice_loss 
-elif loss_function == 'binary_crossentropy':
-    chosen_loss = 'binary_crossentropy'
+    model.compile(optimizer=optimizer, loss=dice_loss, metrics=['accuracy'])
 
-model.compile(optimizer=optimizer, loss=chosen_loss, metrics=['accuracy'])
+elif loss_function == 'binary_crossentropy':
+    loss_fn = weighted_binary_crossentropy(pos_weight=pos_weight, neg_weight=neg_weight)
+    model.compile(optimizer=optimizer, loss=loss_fn, metrics=['accuracy'])
+
+
 
 #model.load_weights('C:/Users/eymen/Documents/project1/trainmodel.keras')        #Load previosly saved model weights 
 
