@@ -9,10 +9,10 @@ from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
 
 ##############################################################
-main_path = f"C:/Users/mikke/Downloads/Dataset_3.1/Dataset_3.1"
-loss_function = 'binary_crossentropy' # Chose between 'dice_loss' or 'binary_crossentropy'
+main_path = f"C:/Users/jakob/Downloads/Dataset_3.1/"
+loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
 epochs = 10  
-If_trash = False # Chose between trash mode or running the real model
+If_trash = True # Chose between trash mode or running the real model
 ##############################################################
 
 def weighted_binary_crossentropy(pos_weight, neg_weight):
@@ -23,20 +23,27 @@ def weighted_binary_crossentropy(pos_weight, neg_weight):
         return tf.reduce_mean(bce)
     return loss_fn
 
-def dice_loss(y_true, y_pred, smooth=1e-6):
+def weighted_dice_loss(y_true, y_pred, pos_weight=1.0, neg_weight=1.0, smooth=1e-6):
     y_true = tf.cast(y_true, tf.float32)
     y_pred = tf.cast(y_pred, tf.float32)
 
+    # Flatten the tensors to calculate overlap
     y_true_flat = tf.reshape(y_true, [-1])
     y_pred_flat = tf.reshape(y_pred, [-1])
+    
+    # Compute weighted true positives, false positives, and false negatives
+    intersection = tf.reduce_sum(pos_weight * y_true_flat * y_pred_flat)
+    false_negatives = tf.reduce_sum(pos_weight * y_true_flat * (1 - y_pred_flat))
+    false_positives = tf.reduce_sum(neg_weight * (1 - y_true_flat) * y_pred_flat)
+    
+    # Compute the weighted denominator
+    denominator = 2 * intersection + false_negatives + false_positives
 
-    intersection = tf.reduce_sum(y_true_flat * y_pred_flat)
-    denominator = tf.reduce_sum(y_true_flat) + tf.reduce_sum(y_pred_flat)
-
-    dice_coeff = (2.0 * intersection + smooth) / (denominator + smooth)
-
+    # Dice coefficient
+    dice_coeff = (2 * intersection + smooth) / (denominator + smooth)
+    
+    # Dice loss
     return 1.0 - dice_coeff
-
 
 # Preprocessing function to load and preprocess both RGB and Depth images
 def preprocess_image(image_path, target_size, Binary_image = False,BGR2RGB = False):
@@ -126,7 +133,7 @@ HHA_folder_test = f"{main_path}/Testing/HHA"
 rgb_images, depth_images, saliency_maps,HHA_images = load_dataset(rgb_folder, depth_folder, saliency_folder,HHA_folder)   #Send folder paths to load dataset function
 rgb_images_val, depth_images_val, saliency_maps_val,HHA_images_val = load_dataset(rgb_folder_val, depth_folder_val, saliency_folder_val,HHA_folder_val)
 
-# rgb_images_test, depth_images_test, saliency_maps_test,HHA_images_test = load_dataset(rgb_folder_test, depth_folder_test, saliency_folder_test,HHA_folder_test)
+rgb_images_test, depth_images_test, saliency_maps_test,HHA_images_test = load_dataset(rgb_folder_test, depth_folder_test, saliency_folder_test,HHA_folder_test)
 
 
 # Check dataset shapes
@@ -238,7 +245,7 @@ model = Saliency()
 optimizer = tf.keras.optimizers.Adam()
 
 if loss_function == 'dice_loss': 
-    model.compile(optimizer=optimizer, loss=dice_loss, metrics=['accuracy'])
+    model.compile(optimizer=optimizer, loss=weighted_dice_loss, metrics=['accuracy'])
 
 elif loss_function == 'binary_crossentropy':
     loss_fn = weighted_binary_crossentropy(pos_weight=pos_weight, neg_weight=neg_weight)
