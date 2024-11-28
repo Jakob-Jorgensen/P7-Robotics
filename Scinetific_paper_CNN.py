@@ -9,9 +9,10 @@ from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
 
 ##############################################################
-main_path = f"C:/Users/jakob/Downloads/Dataset_3.1/"
+#main_path = f"C:/Users/jakob/Downloads/Dataset_3.1" 
+main_path  = r"D:\CNN_Tensorflow_code\Dataset_3.1"
 loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
-epochs = 10  
+epochs = 5 
 If_trash = True # Chose between trash mode or running the real model
 ##############################################################
 
@@ -61,7 +62,7 @@ def preprocess_image(image_path, target_size, Binary_image = False,BGR2RGB = Fal
 
 # Load RGB and Depth images from folder
 def load_dataset(rgb_folder, depth_folder, saliency_folder, HHA_folder, target_size=(224, 224)):
-    rgb_images, depth_images, saliency_maps,HHA_images = [], [], [],[]    #create empty lists
+    rgb_images, depth_images, saliency_maps,HHA_images = [], [], [], []    #create empty lists
 
     rgb_files = sorted(os.listdir(rgb_folder))              #Sorted lists of the files and directories in the specified folders
     depth_files = sorted(os.listdir(depth_folder))
@@ -94,9 +95,6 @@ def load_dataset(rgb_folder, depth_folder, saliency_folder, HHA_folder, target_s
         if not os.path.exists(HHA_path): 
             print(f"HHA image not found: {HHA_path}")
             continue
-        
-
-
         
         rgb_image = preprocess_image(rgb_path, target_size,BGR2RGB=True)                                 #Send path and target size to preprocess function
         depth_image = np.expand_dims(preprocess_image(depth_path, target_size), axis=-1)    #Send path and target size to preprocess function
@@ -133,7 +131,7 @@ HHA_folder_test = f"{main_path}/Testing/HHA"
 rgb_images, depth_images, saliency_maps,HHA_images = load_dataset(rgb_folder, depth_folder, saliency_folder,HHA_folder)   #Send folder paths to load dataset function
 rgb_images_val, depth_images_val, saliency_maps_val,HHA_images_val = load_dataset(rgb_folder_val, depth_folder_val, saliency_folder_val,HHA_folder_val)
 
-rgb_images_test, depth_images_test, saliency_maps_test,HHA_images_test = load_dataset(rgb_folder_test, depth_folder_test, saliency_folder_test,HHA_folder_test)
+#rgb_images_test, depth_images_test, saliency_maps_test,HHA_images_test = load_dataset(rgb_folder_test, depth_folder_test, saliency_folder_test,HHA_folder_test)
 
 
 # Check dataset shapes
@@ -295,8 +293,6 @@ model.save_weights('trainmodel.weights.h5')                                #Save
 # Function to visualize input and output saliency map
 def visualize_saliency(rgb_img, depth_img,HHA_img, saliency_map, prediction):
 
-    
-
     fig, axes = plt.subplots(1, 5, figsize=(16, 8))
     axes[0].imshow(rgb_img)
     axes[0].set_title("RGB Image")
@@ -311,26 +307,10 @@ def visualize_saliency(rgb_img, depth_img,HHA_img, saliency_map, prediction):
     axes[3].set_title("Ground Truth Saliency Map")
     
     axes[4].imshow(prediction[:, :, 0], cmap='gray')
-    axes[4].set_title("Predicted Saliency Map")
+    axes[4].set_title("Predicted Saliency Map") 
+    plt.show()
     
    
-
-# Predict saliency map for a sample image from the validation set
-sample_index = 0  # Change this index to visualize different samples
-sample_rgb = rgb_images_test[sample_index:sample_index+1]  # Take a single RGB image
-sample_depth = depth_images_test[sample_index:sample_index+1]  # Take the corresponding depth image 
-sample_HHA = HHA_images_test[sample_index:sample_index+1]  # Take the corresponding HHA image
-sample_saliency = saliency_maps_test[sample_index]  # Ground truth saliency map for comparison
-
-# Predict saliency map
-predicted_saliency = model.predict([sample_rgb, sample_HHA])
-print(f"predicted shape: {predicted_saliency.shape}")
-print("saliency map output values:",predicted_saliency[0,:,:,0])
-print("saliency map output values:",predicted_saliency[0,25,25,0])
-
-# Visualize the result
-visualize_saliency(sample_rgb[0], sample_depth[0],sample_HHA[0], sample_saliency, predicted_saliency[0])
-
 
 #BELOW ABOUT PRECISION-RECALL METHOD
 
@@ -364,4 +344,20 @@ plt.title('Precision-Recall Curve')
 plt.xlabel('Recall')
 plt.ylabel('Precision')
 plt.grid()
-plt.show()
+
+
+
+for sample_index in range(len(rgb_images_val)):
+    # Visualize the result 
+
+    # Predict saliency map for a sample image from the validation set
+    # Change this index to visualize different samples
+    sample_rgb = rgb_images_val[sample_index:sample_index+1]  # Take a single RGB image
+    sample_depth = depth_images_val[sample_index:sample_index+1]  # Take the corresponding depth image 
+    sample_HHA = HHA_images_val[sample_index:sample_index+1]  # Take the corresponding HHA image
+    sample_saliency = saliency_maps_val[sample_index]  # Ground truth saliency map for comparison
+
+    # Predict saliency map
+    predicted_saliency = model.predict([sample_rgb, sample_HHA])
+    print(f"predicted shape: {predicted_saliency.shape}")
+    visualize_saliency(sample_rgb[0], sample_depth[0],sample_HHA[0], sample_saliency, predicted_saliency[0])
