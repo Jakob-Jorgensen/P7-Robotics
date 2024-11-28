@@ -13,7 +13,7 @@ from sklearn.metrics import average_precision_score
 main_path  = r"D:\CNN_Tensorflow_code\Dataset_3.1"
 loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
 epochs = 5 
-If_trash = True # Chose between trash mode or running the real model
+If_trash = False # Chose between trash mode or running the real model
 ##############################################################
 
 def weighted_binary_crossentropy(pos_weight, neg_weight):
@@ -37,13 +37,21 @@ def IoC_loss(predicted_mask, ground_truth_mask):
     return iou
 
 
-def weighted_dice_loss(y_true, y_pred, pos_weight=1.0, neg_weight=1.0, smooth=1e-6):
+def weighted_dice_loss(y_true, y_pred, smooth=1e-6):
     y_true = tf.cast(y_true, tf.float32)
     y_pred = tf.cast(y_pred, tf.float32)
 
     # Flatten the tensors to calculate overlap
     y_true_flat = tf.reshape(y_true, [-1])
     y_pred_flat = tf.reshape(y_pred, [-1])
+    
+    # Calculate the number of positive and negative pixels in the ground truth
+    num_pos = tf.reduce_sum(y_true_flat)
+    num_neg = tf.reduce_sum(1.0 - y_true_flat)
+    
+    # Calculate positive and negative weights
+    pos_weight = tf.cond(tf.greater(num_pos, 0), lambda: num_neg / (num_pos + num_neg), lambda: 1.0)
+    neg_weight = tf.cond(tf.greater(num_neg, 0), lambda: num_pos / (num_pos + num_neg), lambda: 1.0)
     
     # Compute weighted true positives, false positives, and false negatives
     intersection = tf.reduce_sum(pos_weight * y_true_flat * y_pred_flat)
