@@ -377,7 +377,7 @@ plt.grid()
 
 
 
-for sample_index in range(len(rgb_images_val))q:
+for sample_index in range(len(rgb_images_val)):
     # Visualize the result 
 
     # Predict saliency map for a sample image from the validation set
