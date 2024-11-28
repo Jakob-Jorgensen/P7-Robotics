@@ -9,6 +9,7 @@ from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
 
 ##############################################################
+<<<<<<< Updated upstream
 #main_path = f"C:/Users/jakob/Downloads/Dataset_3.1" 
 main_path  = r"D:\CNN_Tensorflow_code\Dataset_3.1"
 loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
@@ -25,6 +26,26 @@ def weighted_binary_crossentropy(pos_weight, neg_weight):
     return loss_fn
 
 def weighted_dice_loss(y_true, y_pred, pos_weight=1.0, neg_weight=1.0, smooth=1e-6):
+=======
+main_path = f"C:/Users/astri/Downloads/Dataset_3.1"
+loss_function = 'IoC_Loss' # Chose between 'dice_loss' if true or 'binary_crossentropy' if false
+epochs = 5  
+If_trash = True # Chose between trash mode or running the real model
+##############################################################
+
+def IoC_loss(predicted_mask, ground_truth_mask):
+    # Calculate soft intersection and union
+    intersection = tf.reduce_sum(predicted_mask * ground_truth_mask)
+    union = tf.reduce_sum(predicted_mask + ground_truth_mask - predicted_mask * ground_truth_mask)
+    
+    # Avoid division by zero
+    iou = tf.math.divide_no_nan(intersection, union)
+    #print(iou)
+    return iou
+
+
+def dice_loss(y_true, y_pred, smooth=1e-6):
+>>>>>>> Stashed changes
     y_true = tf.cast(y_true, tf.float32)
     y_pred = tf.cast(y_pred, tf.float32)
 
@@ -243,12 +264,21 @@ model = Saliency()
 optimizer = tf.keras.optimizers.Adam()
 
 if loss_function == 'dice_loss': 
+<<<<<<< Updated upstream
     model.compile(optimizer=optimizer, loss=weighted_dice_loss, metrics=['accuracy'])
 
 elif loss_function == 'binary_crossentropy':
     loss_fn = weighted_binary_crossentropy(pos_weight=pos_weight, neg_weight=neg_weight)
     model.compile(optimizer=optimizer, loss=loss_fn, metrics=['accuracy'])
 
+=======
+    chosen_loss = dice_loss 
+elif loss_function == 'binary_crossentropy':
+    chosen_loss = 'binary_crossentropy'
+elif loss_function == 'IoC_Loss':
+    chosen_loss = IoC_loss
+    print('IOC Loss function active')
+>>>>>>> Stashed changes
 
 
 #model.load_weights('C:/Users/eymen/Documents/project1/trainmodel.keras')        #Load previosly saved model weights 
