@@ -14,7 +14,7 @@ def preprocess_image(image_path, target_size):
     return image
 
 # Function to load datasets
-def load_dataset(rgb_folder, depth_folder, gt_folder, target_size=(224,224)):
+def load_dataset(rgb_folder, depth_folder, gt_folder, target_size=(360,180)):
     rgb_images, depth_images, saliency_maps = [], [], []
 
     # List all RGB files (assumes files are named consistently across folders)
