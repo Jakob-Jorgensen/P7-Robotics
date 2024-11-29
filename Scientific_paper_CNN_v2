@@ -129,6 +129,7 @@ class VisualizePredictionsCallback(tf.keras.callbacks.Callback):
         # Convert RGB for matplotlib
         rgb_img = (rgb * 255).astype('uint8')  # Convert to 0-255 range
         rgb_img = cv2.cvtColor(rgb_img,cv2.COLOR_BGR2RGB)
+        depth = cv2.cvtColor(depth,cv2.COLOR_BGR2RGB)
 
         # Plot RGB, Depth, Ground Truth, and Prediction
         fig, axes = plt.subplots(1, 4, figsize=(16, 8))
