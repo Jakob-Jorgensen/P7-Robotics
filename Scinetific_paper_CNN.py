@@ -10,8 +10,8 @@ from sklearn.metrics import average_precision_score
 
 ##############################################################
 #main_path = f"C:/Users/jakob/Downloads/Dataset_3.1" 
-main_path  = r"D:\CNN_Tensorflow_code\Dataset_3.1"
-loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
+main_path  = r"C:\Users\astri\Downloads\Dataset_3.1"
+loss_function = 'IoC_Loss' # Chose between 'dice_loss' or 'binary_crossentropy'
 epochs = 5 
 If_trash = False # Chose between trash mode or running the real model
 ##############################################################
@@ -25,14 +25,13 @@ def weighted_binary_crossentropy(pos_weight, neg_weight):
     return loss_fn
 
 
-
 def IoC_loss(predicted_mask, ground_truth_mask):
     # Calculate soft intersection and union
     intersection = tf.reduce_sum(predicted_mask * ground_truth_mask)
     union = tf.reduce_sum(predicted_mask + ground_truth_mask - predicted_mask * ground_truth_mask)
     
     # Avoid division by zero
-    iou = tf.math.divide_no_nan(intersection, union)
+    iou = 1.0 - tf.math.divide_no_nan(intersection, union)
     #print(iou)
     return iou
 
