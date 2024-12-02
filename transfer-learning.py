@@ -1,6 +1,8 @@
 from tensorflow.keras.applications import ResNet50
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input
+from tensorflow.keras.models import clone_model
+from sklearn.metrics import precision_recall_curve, average_precision_score
 from keras_resnet.models import ResNet18
 import tensorflow as tf
 from keras import layers, Model
@@ -11,10 +13,11 @@ import cv2
 
 
 ##############################################################
-main_path = f"C:/Users/mikke/Downloads/Dataset_3.1/Dataset_3.1"
+
+main_path = f"C:/Users/mikke/Downloads/Dataset_3.1/Dataset_3.1"  
 loss_function = 'binary_crossentropy' # Chose between 'dice_loss' or 'binary_crossentropy'
-epochs = 5  
-If_trash = False # Chose between trash mode or running the real model
+epochs = 5 
+
 ##############################################################
 
 def weighted_binary_crossentropy(pos_weight, neg_weight):
@@ -136,35 +139,76 @@ neg_weight = np.mean(saliency_maps)
 print('White weight: ', pos_weight, ' Black Weight: ', neg_weight)
 # White weight:  0.9926431  Black Weight:  
 
-# Load pretrained RGB model (ResNet50) using TensorFlow
-resNet50 = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))  # Top = FC, SHOULD ALWAYS BE OFF
-for layer in resNet50.layers:  # Freeze earlier layers
-    layer.trainable = False
-resNet50_output = resNet50.output
+# Define unique input layers for RGB and Depth models
+rgb_input = Input(shape=(224, 224, 3), name="rgb_input")
+depth_input = Input(shape=(224, 224, 3), name="depth_input")
 
-# Load pretrained Depth model (ResNet18 or custom) using Keras
-# You can replace this with your custom ResNet18 if you have one.
-# Here, I use ResNet50 just as a placeholder for depth.
-resNet18 = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))  # Use ResNet50 for depth in this example
-for layer in resNet18.layers:
+# Load original ResNet50 model for cloning
+original_resNet50 = ResNet50(weights='imagenet', include_top=False)
+
+# Clone with unique layer names for RGB stream
+resNet50_rgb = clone_model(
+    original_resNet50, 
+    clone_function=lambda layer: layer.__class__.from_config({
+        **layer.get_config(), 
+        "name": f"rgb_{layer.name}"
+    })
+)
+resNet50_rgb._name = "resnet50_rgb"  # Explicitly set a unique name for the model
+resNet50_rgb.set_weights(original_resNet50.get_weights())  # Transfer weights
+for layer in resNet50_rgb.layers:
     layer.trainable = False
-resNet18_output = resNet18
+rgb_stream = resNet50_rgb(rgb_input)
+
+# Clone with unique layer names for Depth stream
+resNet50_depth = clone_model(
+    original_resNet50, 
+    clone_function=lambda layer: layer.__class__.from_config({
+        **layer.get_config(), 
+        "name": f"depth_{layer.name}"
+    })
+)
+resNet50_depth._name = "resnet50_depth"  # Explicitly set a unique name for the model
+resNet50_depth.set_weights(original_resNet50.get_weights())  # Transfer weights
+for layer in resNet50_depth.layers:
+    layer.trainable = False
+depth_stream = resNet50_depth(depth_input)
 
 # RGB Stream processing
-rgb_stream = resNet50_output
-rgb_stream = layers.Conv2DTranspose(512, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (14, 14, 512)
+rgb_stream = resNet50_rgb(rgb_input)
+#rgb_stream = layers.Conv2DTranspose(512, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (14, 14, 512)
+#rgb_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (28, 28, 256)
+#rgb_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (56, 56, 128)
+#rgb_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (112, 112, 64)
+#rgb_stream = layers.Conv2DTranspose(3, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (224, 224, 3)
+
+rgb_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(rgb_stream)
+rgb_stream = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(rgb_stream)
 rgb_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (28, 28, 256)
 rgb_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (56, 56, 128)
 rgb_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (112, 112, 64)
-rgb_stream = layers.Conv2DTranspose(3, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (224, 224, 3)
+rgb_stream = layers.Conv2DTranspose(32, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (224, 224, 32)
+rgb_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(rgb_stream)   # (224, 224, 3) 
+# There is a convolutional layer to help preserve details before upsampling
+
+
 
 # Depth Stream processing (Fix here: Using depth_stream, not rgb_stream)
-depth_stream = resNet18_output
-depth_stream = layers.Conv2DTranspose(512, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (7, 7, 256)
-depth_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (14, 14, 128)
-depth_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (28, 28, 64)
-depth_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (56, 56, 32)
-depth_stream = layers.Conv2DTranspose(3, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (112, 112, 16)
+depth_stream = resNet50_depth(depth_input)
+#depth_stream = layers.Conv2DTranspose(512, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (7, 7, 256)
+#depth_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (14, 14, 128)
+#depth_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (28, 28, 64)
+#depth_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (56, 56, 32)
+#depth_stream = layers.Conv2DTranspose(3, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (112, 112, 16)
+
+depth_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(depth_stream)
+depth_stream = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(depth_stream)
+depth_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (28, 28, 256)
+depth_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (56, 56, 128)
+depth_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (112, 112, 64)
+depth_stream = layers.Conv2DTranspose(32, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (224, 224, 32)
+depth_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(depth_stream)   # (224, 224, 3)
+# There is a convolutional layer to help preserve details before upsampling
 
 # Concatenate the RGB and Depth streams
 fused = layers.Concatenate()([rgb_stream, depth_stream])
@@ -175,24 +219,36 @@ fused = layers.Conv2D(1, kernel_size=(1, 1), activation='sigmoid')(fused)
 # Reshape to match output dimensions
 saliency_output = layers.Reshape((224, 224, 1))(fused)
 
-# Define the model with both streams as input
-model = Model(inputs=[resNet50.input, resNet18.input], outputs=saliency_output)
 
-# Compile the model with binary crossentropy loss
-model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), 
-              loss='binary_crossentropy', 
+
+
+# Define the model with both streams as input
+model = Model(inputs=[rgb_input, depth_input], outputs=saliency_output)
+
+
+if loss_function == 'dice_loss': 
+    model.compile(optimizer=tf.keras.optimizer.Adam, loss=dice_loss, metrics=['accuracy'])
+
+elif loss_function == 'binary_crossentropy':
+    loss_fn = weighted_binary_crossentropy(pos_weight=pos_weight, neg_weight=neg_weight)
+    # Compile the model with binary crossentropy loss
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), 
+              loss=loss_fn, 
               metrics=['accuracy'])
+
+
+
 
 # Summary of the model to ensure everything is correct
 model.summary()
 
 # Now you can train the model
 history = model.fit(
-    [rgb_images, depth_images],  # Inputs as a list of RGB and Depth images
+    [rgb_images, HHA_images],  # Inputs as a list of RGB and Depth images
     saliency_maps,               # Targets (saliency maps)
     epochs=epochs, 
     batch_size=16,
-    validation_data=([rgb_images_val, depth_images_val], saliency_maps_val)  # Validation data
+    validation_data=([rgb_images_val, HHA_images_val], saliency_maps_val)  # Validation data
 )
 
 plt.figure(figsize=(14, 5))
