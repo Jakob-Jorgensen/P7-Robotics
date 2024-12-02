@@ -3,7 +3,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import clone_model
 from sklearn.metrics import precision_recall_curve, average_precision_score
-from keras_resnet.models import ResNet18
+from tensorflow.keras import backend as K
 import tensorflow as tf
 from keras import layers, Model
 import matplotlib.pyplot as plt
@@ -16,9 +16,26 @@ import cv2
 
 main_path = f"C:/Users/mikke/Downloads/Dataset_3.1/Dataset_3.1"  
 loss_function = 'binary_crossentropy' # Chose between 'dice_loss' or 'binary_crossentropy'
-epochs = 5 
+epochs = 1 
 
 ##############################################################
+
+def IoU(y_true, y_pred, threshold=0.5):
+    """
+    Computes Intersection over Union (IoU) metric.
+    y_true: Ground truth mask (binary).
+    y_pred: Predicted mask (binary).
+    threshold: Threshold for converting predicted probabilities to binary (default 0.5).
+    """
+    # Apply threshold to predicted values (e.g., sigmoid output) to get binary mask
+    y_pred = K.cast(K.greater(y_pred, threshold), K.floatx())
+    
+    # Calculate intersection and union
+    intersection = K.sum(y_true * y_pred)  # True Positive pixels
+    union = K.sum(y_true) + K.sum(y_pred) - intersection  # True Positives + False Positives + False Negatives
+    
+    # Avoid division by zero by adding a small epsilon
+    return intersection / (union + K.epsilon())
 
 def weighted_binary_crossentropy(pos_weight, neg_weight):
     def loss_fn(y_true, y_pred):
@@ -139,6 +156,30 @@ neg_weight = np.mean(saliency_maps)
 print('White weight: ', pos_weight, ' Black Weight: ', neg_weight)
 # White weight:  0.9926431  Black Weight:  
 
+# Define attention gate
+def attention_gate(x, g, inter_channel=32):
+    """
+    Attention Gate that focuses on relevant features from the skip connections
+    x: input feature map from encoder
+    g: input feature map from decoder
+    inter_channel: number of intermediate channels for the attention layer
+    """
+    # Applying a convolution to both the encoder and decoder features
+    theta_x = layers.Conv2D(inter_channel, (1, 1), padding='same')(x)  # Apply 1x1 conv to encoder output
+    phi_g = layers.Conv2D(inter_channel, (1, 1), padding='same')(g)     # Apply 1x1 conv to decoder output
+
+    # Adding the two
+    add_xg = layers.Add()([theta_x, phi_g])
+    add_xg = layers.Activation('relu')(add_xg)
+
+    # Applying a final convolution for attention gating
+    psi = layers.Conv2D(1, (1, 1), padding='same', activation='sigmoid')(add_xg)
+    
+    # Multiply attention map with encoder features
+    attn = layers.Multiply()([x, psi])
+
+    return attn
+
 # Define unique input layers for RGB and Depth models
 rgb_input = Input(shape=(224, 224, 3), name="rgb_input")
 depth_input = Input(shape=(224, 224, 3), name="depth_input")
@@ -148,45 +189,61 @@ original_resNet50 = ResNet50(weights='imagenet', include_top=False)
 
 # Clone with unique layer names for RGB stream
 resNet50_rgb = clone_model(
-    original_resNet50, 
+    original_resNet50,
     clone_function=lambda layer: layer.__class__.from_config({
-        **layer.get_config(), 
+        **layer.get_config(),
         "name": f"rgb_{layer.name}"
     })
 )
 resNet50_rgb._name = "resnet50_rgb"  # Explicitly set a unique name for the model
 resNet50_rgb.set_weights(original_resNet50.get_weights())  # Transfer weights
-for layer in resNet50_rgb.layers:
-    layer.trainable = False
-rgb_stream = resNet50_rgb(rgb_input)
 
 # Clone with unique layer names for Depth stream
 resNet50_depth = clone_model(
-    original_resNet50, 
+    original_resNet50,
     clone_function=lambda layer: layer.__class__.from_config({
-        **layer.get_config(), 
+        **layer.get_config(),
         "name": f"depth_{layer.name}"
     })
 )
 resNet50_depth._name = "resnet50_depth"  # Explicitly set a unique name for the model
 resNet50_depth.set_weights(original_resNet50.get_weights())  # Transfer weights
-for layer in resNet50_depth.layers:
-    layer.trainable = False
+
+# Function to selectively unfreeze layers in a given model
+def unfreeze_layers(model, unfreeze_start_layer):
+    """
+    Unfreezes layers starting from `unfreeze_start_layer`.
+    """
+    unfreeze = False
+    for layer in model.layers:
+        if unfreeze_start_layer in layer.name:
+            unfreeze = True
+        layer.trainable = unfreeze
+
+# Unfreeze the last residual block (Stage 4) in both models
+unfreeze_layers(resNet50_rgb, "rgb_conv5_block1")  # Start unfreezing from RGB Stage 4
+unfreeze_layers(resNet50_depth, "depth_conv5_block1")  # Start unfreezing from Depth Stage 4
+
+# RGB stream
+rgb_stream = resNet50_rgb(rgb_input)
+
+# Depth stream
 depth_stream = resNet50_depth(depth_input)
 
 # RGB Stream processing
 rgb_stream = resNet50_rgb(rgb_input)
-#rgb_stream = layers.Conv2DTranspose(512, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (14, 14, 512)
-#rgb_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (28, 28, 256)
-#rgb_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (56, 56, 128)
-#rgb_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (112, 112, 64)
-#rgb_stream = layers.Conv2DTranspose(3, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (224, 224, 3)
-
 rgb_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(rgb_stream)
 rgb_stream = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(rgb_stream)
-rgb_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (28, 28, 256)
+
+# Apply attention gate for skip connection from RGB stream
+rgb_stream_attn = attention_gate(rgb_stream, rgb_stream)
+
+rgb_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream_attn)  # (28, 28, 256)
+rgb_stream = layers.Conv2D(128, (3, 3), padding='same', activation='sigmoid')(rgb_stream)
 rgb_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (56, 56, 128)
+rgb_stream = layers.Conv2D(64, (3, 3), padding='same', activation='sigmoid')(rgb_stream)
 rgb_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (112, 112, 64)
+rgb_stream = layers.Conv2D(32, (3, 3), padding='same', activation='sigmoid')(rgb_stream)
 rgb_stream = layers.Conv2DTranspose(32, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (224, 224, 32)
 rgb_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(rgb_stream)   # (224, 224, 3) 
 # There is a convolutional layer to help preserve details before upsampling
@@ -195,17 +252,19 @@ rgb_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(rgb_
 
 # Depth Stream processing (Fix here: Using depth_stream, not rgb_stream)
 depth_stream = resNet50_depth(depth_input)
-#depth_stream = layers.Conv2DTranspose(512, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (7, 7, 256)
-#depth_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (14, 14, 128)
-#depth_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (28, 28, 64)
-#depth_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (56, 56, 32)
-#depth_stream = layers.Conv2DTranspose(3, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (112, 112, 16)
 
 depth_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(depth_stream)
 depth_stream = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(depth_stream)
+
+# Apply attention gate for skip connection from Depth stream
+depth_stream_attn = attention_gate(depth_stream, depth_stream)
+
 depth_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (28, 28, 256)
+depth_stream = layers.Conv2D(128, (3, 3), padding='same', activation='relu')(depth_stream)
 depth_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (56, 56, 128)
+depth_stream = layers.Conv2D(64, (3, 3), padding='same', activation='relu')(depth_stream)
 depth_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (112, 112, 64)
+depth_stream = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(depth_stream)
 depth_stream = layers.Conv2DTranspose(32, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)   # (224, 224, 32)
 depth_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(depth_stream)   # (224, 224, 3)
 # There is a convolutional layer to help preserve details before upsampling
@@ -227,14 +286,16 @@ model = Model(inputs=[rgb_input, depth_input], outputs=saliency_output)
 
 
 if loss_function == 'dice_loss': 
-    model.compile(optimizer=tf.keras.optimizer.Adam, loss=dice_loss, metrics=['accuracy'])
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), 
+              loss=dice_loss, 
+              metrics=[IoU])
 
 elif loss_function == 'binary_crossentropy':
     loss_fn = weighted_binary_crossentropy(pos_weight=pos_weight, neg_weight=neg_weight)
     # Compile the model with binary crossentropy loss
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), 
               loss=loss_fn, 
-              metrics=['accuracy'])
+              metrics=[IoU])
 
 
 
@@ -254,8 +315,8 @@ history = model.fit(
 plt.figure(figsize=(14, 5))
 # Plot accuracy
 plt.subplot(1, 2, 1)
-plt.plot(history.history['accuracy'], label='Training Accuracy')
-plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.plot(history.history['IoU'], label='Training Accuracy')
+plt.plot(history.history['val_IoU'], label='Validation Accuracy')
 plt.xlabel('Epochs')
 plt.ylabel('Accuracy') 
 plt.ylim(0, 1)
