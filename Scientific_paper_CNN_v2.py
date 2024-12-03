@@ -61,10 +61,10 @@ rgb_val, depth_val, saliency_val = load_dataset(val_rgb_folder, val_depth_folder
 # Check dataset shapes
 print(f"RGB Train Shape: {rgb_train.shape}")
 print(f"Depth Train Shape: {depth_train.shape}")
-print(f"Saliency Train Shape: {saliency_train.shape}")
+print(f"GT Train Shape: {saliency_train.shape}")
 print(f"RGB Validation Shape: {rgb_val.shape}")
 print(f"Depth Validation Shape: {depth_val.shape}")
-print(f"Saliency Validation Shape: {saliency_val.shape}")
+print(f"GT Validation Shape: {saliency_val.shape}")
 
 
 # Define the CNN architecture for RGB-D saliency detection
