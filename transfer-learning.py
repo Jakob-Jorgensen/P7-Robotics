@@ -17,7 +17,7 @@ import cv2
 main_path = f"C:/Users/mikke/Downloads/Dataset_3.2/Dataset_3.2"  
 loss_function = 'binary_crossentropy' # Chose between 'dice_loss' or 'binary_crossentropy'
 Augmented_data = True # Chose between True or False, True if you want to use augmented data 
-epochs = 50     
+epochs = 25     
 
 
 ##############################################################
@@ -282,7 +282,7 @@ depth_stream = resNet50_depth(depth_input)
 # RGB Stream processing
 rgb_stream = resNet50_rgb(rgb_input)
 rgb_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(rgb_stream)
-rgb_stream = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(rgb_stream)
+#rgb_stream = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(rgb_stream)
 
 # Apply attention gate for skip connection from RGB stream
 #rgb_stream_attn = attention_gate(rgb_stream, rgb_stream)
@@ -292,7 +292,7 @@ rgb_stream = layers.Conv2D(128, (3, 3), padding='same', activation='sigmoid')(rg
 rgb_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (56, 56, 128)
 rgb_stream = layers.Conv2D(64, (3, 3), padding='same', activation='sigmoid')(rgb_stream)
 rgb_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (112, 112, 64)
-rgb_stream = layers.Conv2D(32, (3, 3), padding='same', activation='sigmoid')(rgb_stream)
+rgb_stream = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(rgb_stream)
 rgb_stream = layers.Conv2DTranspose(32, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (224, 224, 32)
 rgb_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(rgb_stream)   # (224, 224, 3) 
 # There is a convolutional layer to help preserve details before upsampling
@@ -303,7 +303,7 @@ rgb_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(rgb_
 depth_stream = resNet50_depth(depth_input)
 
 depth_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(depth_stream)
-depth_stream = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(depth_stream)
+#depth_stream = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(depth_stream)
 
 # Apply attention gate for skip connection from Depth stream
 #depth_stream_attn = attention_gate(depth_stream, depth_stream)
@@ -355,7 +355,7 @@ history = model.fit(
     [rgb_images, HHA_images],  # Inputs as a list of RGB and Depth images
     saliency_maps,               # Targets (saliency maps)
     epochs=epochs, 
-    batch_size=16,
+    batch_size=32,
     validation_data=([rgb_images_val, HHA_images_val], saliency_maps_val)  # Validation data
 )
 
