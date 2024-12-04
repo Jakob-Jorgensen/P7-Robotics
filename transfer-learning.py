@@ -15,7 +15,7 @@ import cv2
 ##############################################################
   
 main_path = f"C:/Users/mikke/Downloads/Dataset_3.2/Dataset_3.2"  
-loss_function = 'binary_crossentropy' # Chose between 'dice_loss' or 'binary_crossentropy'
+loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
 Augmented_data = True # Chose between True or False, True if you want to use augmented data 
 epochs = 25     
 
