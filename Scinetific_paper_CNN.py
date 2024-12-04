@@ -11,9 +11,9 @@ from sklearn.metrics import average_precision_score
 ##############################################################
 #main_path = f"C:/Users/jakob/Downloads/Dataset_3.1" 
 main_path  = r"C:\Users\astri\Downloads\Dataset_3.1"
-loss_function = 'IoU_Loss' # Chose between 'dice_loss' or 'binary_crossentropy'
-epochs = 5 
-If_trash = False # Chose between trash mode or running the real model
+loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
+epochs = 1
+If_trash = True # Chose between trash mode or running the real model
 ##############################################################
 
 def weighted_binary_crossentropy(pos_weight, neg_weight):
@@ -173,10 +173,10 @@ class Saliency(Model):
     def __init__(self):
         super(Saliency, self).__init__()
 
+        '''
         self.conv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
         self.maxpool1 = layers.MaxPooling2D((3, 3), strides=1)
         self.norm1 =  layers.BatchNormalization() 
-        
 
         self.dilated_conv2 = layers.Conv2D(256, (3, 3), strides=1 , padding='same', dilation_rate=2, activation='relu')
         self.maxpool2 = layers.MaxPooling2D(pool_size=(3, 3), strides=1)
@@ -189,30 +189,71 @@ class Saliency(Model):
         self.trapos1 = layers.Conv2DTranspose(128, (3, 3), strides=2, padding='same', activation='relu')  # 50 > 100
         self.trapos2 = layers.Conv2DTranspose(64, (4, 4), strides=2, padding='same', activation='relu')  # 100 > 200
         self.trapos3 = layers.Conv2DTranspose(3, (25, 25), strides=1, padding='valid', activation='sigmoid') # 224
+        '''
 
         # Fusion and final layer
         self.fuse_conv = layers.Conv2D(1, (1, 1), activation='sigmoid') 
-        #trash  
-
 
         self.drouput = layers.Dropout(0.5) 
 
-
+        '''
+        #Trash model
         self.trash1 = layers.Conv2D(2, (3,3), activation='relu',padding='valid')
         self.trash2 = layers.MaxPooling2D((3, 3),strides=1)
         self.trash3 = layers.BatchNormalization()
         self.trash4 = layers.Dropout(0.5)
         self.trash5 = layers.Conv2DTranspose(3, (5, 5), activation='sigmoid', strides=1, padding='valid')
+        '''
+        
+        #The shallow model
+        self.shallowConv1 = layers.Conv2D(96, (11,11), activation='relu',padding='valid')
+        self.ShallowMaxPool1 = layers.MaxPooling2D((3, 3),strides=1)
+        self.shallownorm1 = layers.BatchNormalization()
+
+        self.shallowdilated_conv2 = layers.Conv2D(256, (3, 3), strides=1 , padding='same', dilation_rate=2, activation='relu')
+        self.shallowmaxpool2 = layers.MaxPooling2D(pool_size=(3, 3), strides=1)
+        self.shallownorm2 =  layers.BatchNormalization() 
+        
+        self.shallowdilated_conv3 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
+        
+        self.shallowdilated_conv4 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
+        self.shallowtrapos1 = layers.Conv2DTranspose(192, (4, 4), strides=1, padding='valid', activation='relu' )
+        self.shallowtrapos2 = layers.Conv2DTranspose(96, (5,5), strides=1, padding='valid', activation='relu')
+        self.shallowtrapos3 = layers.Conv2DTranspose(48, (6,6), strides=1, padding='valid', activation='relu')
+        self.shallowtrapos4 = layers.Conv2DTranspose(3, (3, 3), strides=1, padding='valid', activation='sigmoid')
+
 
 
     # Forward pass for RGB stream
     if If_trash ==  True: 
         def stream(self, x):
+            '''
             x = self.trash1(x)
             x = self.trash2(x)
             x = self.trash3(x)
             x = self.trash4(x)
             x = self.trash5(x)
+            '''
+            #'''
+            x = self.shallowConv1(x)
+            x = self.ShallowMaxPool1(x)
+            x = self.shallownorm1(x)
+
+            x = self.shallowdilated_conv2(x)
+            x = self.shallowmaxpool2(x)
+            x = self.shallownorm2(x)
+
+            x = self.shallowdilated_conv3(x)
+            #x = self.shallowdilated_conv4(x)
+
+            x = self.drouput(x)
+
+            x = self.shallowtrapos1(x) 
+            x = self.shallowtrapos2(x) 
+            x = self.shallowtrapos3(x)
+            x = self.shallowtrapos4(x)
+            #'''
+
             return x  
     else:
         # Forward pass for Depth stream
