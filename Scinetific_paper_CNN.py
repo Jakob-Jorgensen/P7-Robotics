@@ -12,7 +12,7 @@ from sklearn.metrics import average_precision_score
 #main_path = f"C:/Users/jakob/Downloads/Dataset_3.1" 
 main_path  = r"C:\Users\astri\Downloads\Dataset_3.1"
 loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
-epochs = 1
+epochs = 5
 If_trash = True # Chose between trash mode or running the real model
 ##############################################################
 
@@ -204,9 +204,9 @@ class Saliency(Model):
         self.trash4 = layers.Dropout(0.5)
         self.trash5 = layers.Conv2DTranspose(3, (5, 5), activation='sigmoid', strides=1, padding='valid')
         '''
-        
+
         #The shallow model
-        self.shallowConv1 = layers.Conv2D(96, (11,11), activation='relu',padding='valid')
+        self.shallowConv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
         self.ShallowMaxPool1 = layers.MaxPooling2D((3, 3),strides=1)
         self.shallownorm1 = layers.BatchNormalization()
 
@@ -217,10 +217,11 @@ class Saliency(Model):
         self.shallowdilated_conv3 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
         
         self.shallowdilated_conv4 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
-        self.shallowtrapos1 = layers.Conv2DTranspose(192, (4, 4), strides=1, padding='valid', activation='relu' )
-        self.shallowtrapos2 = layers.Conv2DTranspose(96, (5,5), strides=1, padding='valid', activation='relu')
-        self.shallowtrapos3 = layers.Conv2DTranspose(48, (6,6), strides=1, padding='valid', activation='relu')
-        self.shallowtrapos4 = layers.Conv2DTranspose(3, (3, 3), strides=1, padding='valid', activation='sigmoid')
+        
+        self.shallowtrapos1 = layers.Conv2DTranspose(128, (3, 3), strides=2, padding='same', activation='relu')  # 50 > 100
+        self.shallowtrapos2 = layers.Conv2DTranspose(64, (4, 4), strides=2, padding='same', activation='relu')  # 100 > 200
+        self.shallowtrapos3 = layers.Conv2DTranspose(3, (25, 25), strides=1, padding='valid', activation='sigmoid') # 224
+        #self.shallowtrapos4 = layers.Conv2DTranspose(3, (3, 3), strides=1, padding='valid', activation='sigmoid')
 
 
 
@@ -244,14 +245,14 @@ class Saliency(Model):
             x = self.shallownorm2(x)
 
             x = self.shallowdilated_conv3(x)
-            #x = self.shallowdilated_conv4(x)
+            x = self.shallowdilated_conv4(x)
 
             x = self.drouput(x)
 
             x = self.shallowtrapos1(x) 
             x = self.shallowtrapos2(x) 
             x = self.shallowtrapos3(x)
-            x = self.shallowtrapos4(x)
+            #x = self.shallowtrapos4(x)
             #'''
 
             return x  
