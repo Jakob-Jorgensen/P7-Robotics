@@ -13,11 +13,11 @@ import cv2
 
 
 ##############################################################
-  
-main_path = f"C:/Users/mikke/Downloads/Dataset_3.1/Dataset_3.1"  
-loss_function = 'binary_crossentropy' # Chose between 'dice_loss' or 'binary_crossentropy'
-epochs = 200   
 
+main_path = f"C:/Users/mikke/Downloads/Dataset_3.1/Dataset_3.1"   
+loss_function = 'binary_crossentropy' # Chose between 'dice_loss' or 'binary_crossentropy' 
+Augmented_data = True # Chose between True or False, True if you want to use augmented data 
+epochs = 1 
 
 ##############################################################
 
@@ -63,69 +63,102 @@ def dice_loss(y_true, y_pred, smooth=1e-6):
 
 # Preprocessing function to load and preprocess both RGB and Depth images
 def preprocess_image(image_path, target_size, Binary_image = False,BGR2RGB = False):
-    image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)              # Load the image using OpenCV 
+    image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)              # Load the image using OpenCV  
     if Binary_image == True:                                          #If the image is binary
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)                 #Convert the image to grayscale¨
     elif BGR2RGB == True: 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    else: 
-        image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)   
   
     image = cv2.resize(image, target_size)      # Resize the image using OpenCV
     image = image.astype('float32') / 255.0  # Normalize the image to range [0, 1]
     return image
 
 # Load RGB and Depth images from folder
-def load_dataset(rgb_folder, depth_folder, saliency_folder, HHA_folder, target_size=(224, 224)):
-    rgb_images, depth_images, saliency_maps,HHA_images = [], [], [],[]    #create empty lists
+def load_dataset(rgb_folder, saliency_folder, HHA_folder, depth_images =None, target_size=(224, 224)): 
+    if Augmented_data != True: 
 
-    rgb_files = sorted(os.listdir(rgb_folder))              #Sorted lists of the files and directories in the specified folders
-    depth_files = sorted(os.listdir(depth_folder))
-    saliency_files = sorted(os.listdir(saliency_folder)) 
-    HHA_files = sorted(os.listdir(HHA_folder)) 
+        rgb_images, depth_images, saliency_maps, HHA_images = [], [], [],[]    #create empty lists
+
+        rgb_files = sorted(os.listdir(rgb_folder))              #Sorted lists of the files and directories in the specified folders
+        depth_files = sorted(os.listdir(depth_folder))
+        saliency_files = sorted(os.listdir(saliency_folder)) 
+        HHA_files = sorted(os.listdir(HHA_folder)) 
+        
+        print(f"Found {len(rgb_files)} RGB images.")            #Printing founded image count from a list length
+        print(f"Found {len(depth_files)} depth images.")
+        print(f"Found {len(saliency_files)} saliency maps.") 
+        print(f"Found {len(HHA_files)} HHA images.") 
     
-    print(f"Found {len(rgb_files)} RGB images.")            #Printing founded image count from a list length
-    print(f"Found {len(depth_files)} depth images.")
-    print(f"Found {len(saliency_files)} saliency maps.") 
-    print(f"Found {len(HHA_files)} HHA images.") 
- 
-    for i, img_file in enumerate(rgb_files):                #For loop for all images
-        rgb_path = os.path.join(rgb_folder, img_file)       #Make path for each image 
-                
-        temp_name = img_file.split('RGB')[1]
-        depth_path = os.path.join(depth_folder, 'Depth' + temp_name.split('.')[0] + '.Tiff')
-        saliency_path = os.path.join(saliency_folder, 'undistored_GT' + img_file.split('RGB')[1]) 
-        HHA_path = os.path.join(HHA_folder, 'HHA' + img_file.split('RGB')[1])
+        for i, img_file in enumerate(rgb_files):                #For loop for all images
+            rgb_path = os.path.join(rgb_folder, img_file)       #Make path for each image 
+            temp_name = img_file.split('RGB')[1]
+            depth_path = os.path.join(depth_folder, 'Depth' + temp_name.split('.')[0] + '.Tiff')
+            saliency_path = os.path.join(saliency_folder, 'undistored_GT' + img_file.split('RGB')[1]) 
+            HHA_path = os.path.join(HHA_folder, 'HHA' + img_file.split('RGB')[1])
+            
+            # Debugging: Print paths and check file existence
+            if not os.path.exists(rgb_path):
+                print(f"RGB image not found: {rgb_path}")
+                continue
+            if not os.path.exists(depth_path):
+                print(f"Depth image not found: {depth_path}")
+                continue
+            if not os.path.exists(saliency_path):
+                print(f"Saliency map not found: {saliency_path}")
+                continue  
+            if not os.path.exists(HHA_path): 
+                print(f"HHA image not found: {HHA_path}")
+                continue
+            
+            
+            rgb_image = preprocess_image(rgb_path, target_size,BGR2RGB=True)                                 #Send path and target size to preprocess function
+            depth_image = np.expand_dims(preprocess_image(depth_path, target_size), axis=-1)    #Send path and target size to preprocess function
+            saliency_map = preprocess_image(saliency_path, target_size,Binary_image= True)  
+            HHA_image = preprocess_image(HHA_path, target_size,BGR2RGB=True)                                 #Send path and target size to preprocess function
+            rgb_images.append(rgb_image)                                                        #Add preprocessed images to list
+            depth_images.append(depth_image)                                                    #Add preprocessed depth images to list
+            saliency_maps.append(saliency_map)                                                  #Add preprocessed saliency maps to list     
+            HHA_images.append(HHA_image)                                                        #Add preprocessed HHA images to list
+            
+        return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps), np.array(HHA_images)  #Convert lists to Numpy arrays as an output  
+    else: 
+        rgb_images, saliency_maps, HHA_images = [], [], []   #create empty lists
+        rgb_files = sorted(os.listdir(rgb_folder))              #Sorted lists of the files and directories in the specified folders
+        saliency_files = sorted(os.listdir(saliency_folder)) 
+        HHA_files = sorted(os.listdir(HHA_folder)) 
         
-        # Debugging: Print paths and check file existence
-        if not os.path.exists(rgb_path):
-            print(f"RGB image not found: {rgb_path}")
-            continue
-        if not os.path.exists(depth_path):
-            print(f"Depth image not found: {depth_path}")
-            continue
-        if not os.path.exists(saliency_path):
-            print(f"Saliency map not found: {saliency_path}")
-            continue  
-        if not os.path.exists(HHA_path): 
-            print(f"HHA image not found: {HHA_path}")
-            continue
-        
-        
-        rgb_image = preprocess_image(rgb_path, target_size,BGR2RGB=True)                                 #Send path and target size to preprocess function
-        depth_image = np.expand_dims(preprocess_image(depth_path, target_size), axis=-1)    #Send path and target size to preprocess function
-        saliency_map = preprocess_image(saliency_path, target_size,Binary_image= True)  
-        HHA_image = preprocess_image(HHA_path, target_size,BGR2RGB=True)                                 #Send path and target size to preprocess function
-        rgb_images.append(rgb_image)                                                        #Add preprocessed images to list
-        depth_images.append(depth_image)                                                    #Add preprocessed depth images to list
-        saliency_maps.append(saliency_map)                                                  #Add preprocessed saliency maps to list     
-        HHA_images.append(HHA_image)                                                        #Add preprocessed HHA images to list
-        
-    return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps), np.array(HHA_images)  #Convert lists to Numpy arrays as an output
+        print(f"Found {len(rgb_files)} RGB images.")            #Printing founded image count from a list length
+        print(f"Found {len(saliency_files)} saliency maps.") 
+        print(f"Found {len(HHA_files)} HHA images.") 
     
+        for i, img_file in enumerate(rgb_files):   
+            
+            rgb_path = os.path.join(rgb_folder, img_file)       #Make path for each image  
+            saliency_path = os.path.join(saliency_folder, img_file)  
+            HHA_path = os.path.join(HHA_folder,img_file) 
+            
+           
+            # Debugging: Print paths and check file existence
+            if not os.path.exists(rgb_path):
+                print(f"RGB image not found: {rgb_path}")
+                continue
+            if not os.path.exists(saliency_path):
+                print(f"Saliency map not found: {saliency_path}")
+                continue  
+            if not os.path.exists(HHA_path): 
+                print(f"HHA image not found: {HHA_path}")
+                continue
+        
+            rgb_image = preprocess_image(rgb_path, target_size,BGR2RGB=True)                                 #Send path and target size to preprocess function
+            saliency_map = preprocess_image(saliency_path, target_size,Binary_image= True)  
+            HHA_image = preprocess_image(HHA_path, target_size,BGR2RGB=True)                                 #Send path and target size to preprocess function 
 
-
-
+            rgb_images.append(rgb_image)                                                        #Add preprocessed images to list                                          
+            saliency_maps.append(saliency_map)                                                  #Add preprocessed saliency maps to list     
+            HHA_images.append(HHA_image)                                                        #Add preprocessed HHA images to list
+            
+        return np.array(rgb_images), np.array(saliency_maps), np.array(HHA_images)  #Convert lists to Numpy arrays as an output
+    
 rgb_folder = f"{main_path}/Training/RGB"
 depth_folder = f"{main_path}/Training/Depth"
 saliency_folder = f"{main_path}/Training/GT" 
@@ -141,19 +174,30 @@ depth_folder_test = f"{main_path}/Testing/Depth"
 saliency_folder_test = f"{main_path}/Testing/GT" 
 HHA_folder_test = f"{main_path}/Testing/HHA"
 
-# Load the dataset
-rgb_images, depth_images, saliency_maps,HHA_images = load_dataset(rgb_folder, depth_folder, saliency_folder,HHA_folder)   #Send folder paths to load dataset function
-rgb_images_val, depth_images_val, saliency_maps_val,HHA_images_val = load_dataset(rgb_folder_val, depth_folder_val, saliency_folder_val,HHA_folder_val)
+# Load the dataset 
+if Augmented_data:   
+    rgb_images, saliency_maps, HHA_images = load_dataset(rgb_folder=rgb_folder, saliency_folder =saliency_folder,HHA_folder=HHA_folder)   #Send folder paths to load dataset function
+    rgb_images_val, saliency_maps_val, HHA_images_val = load_dataset(rgb_folder=rgb_folder_val,saliency_folder= saliency_folder_val,HHA_folder=HHA_folder_val)
+    #rgb_images_test, depth_images_test, saliency_maps_test, HHA_images_test = np.array([os.path.join(rgb_folder_test, f) for f in os.listdir(rgb_folder_test)]), np.array([os.path.join(depth_folder_test, f) for f in os.listdir(depth_folder_test)]), np.array([os.path.join(saliency_folder_test, f) for f in os.listdir(saliency_folder_test)]), np.array([os.path.join(HHA_folder_test, f) for f in os.listdir(HHA_folder_test)]) 
+    
+    # Check dataset shapes
+    print(f"RGB images shape: {rgb_images.shape}")
+    print(f"Saliency maps shape: {saliency_maps.shape}") 
+    print(f"HHA images shape: {HHA_images.shape}") 
 
-rgb_images_test, depth_images_test, saliency_maps_test,HHA_images_test = load_dataset(rgb_folder_test, depth_folder_test, saliency_folder_test,HHA_folder_test)
+else: 
+    rgb_images, depth_images, saliency_maps,HHA_images = load_dataset(rgb_folder, saliency_folder,HHA_folder, depth_folder)   #Send folder paths to load dataset function
+    rgb_images_val, depth_images_val, saliency_maps_val,HHA_images_val = load_dataset(rgb_folder_val, saliency_folder_val,HHA_folder_val,depth_folder_val)
+    #rgb_images_test, depth_images_test, saliency_maps_test,HHA_images_test = load_dataset(rgb_folder_test, depth_folder_test, saliency_folder_test,HHA_folder_test)  
+
+    # Check dataset shapes
+    print(f"RGB images shape: {rgb_images.shape}")
+    print(f"Depth images shape: {depth_images.shape}")
+    print(f"Saliency maps shape: {saliency_maps.shape}") 
+    print(f"HHA images shape: {HHA_images.shape}") 
 
 
 
-# Check dataset shapes
-print(f"RGB images shape: {rgb_images.shape}")
-print(f"Depth images shape: {depth_images.shape}")
-print(f"Saliency maps shape: {saliency_maps.shape}") 
-print(f"HHA images shape: {HHA_images.shape}") 
 
 pos_weight = np.mean(1 - saliency_maps)  # Mean of non-salient (background) pixels
 neg_weight = np.mean(saliency_maps) 
@@ -284,23 +328,25 @@ fused = layers.Conv2D(1, kernel_size=(1, 1), activation='sigmoid')(fused)
 saliency_output = layers.Reshape((224, 224, 1))(fused)
 
 
+
+
 # Define the model with both streams as input
 model = Model(inputs=[rgb_input, depth_input], outputs=saliency_output)
 
 
 if loss_function == 'dice_loss': 
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.00001), 
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), 
               loss=dice_loss, 
               metrics=[IoU])
 
 elif loss_function == 'binary_crossentropy':
     loss_fn = weighted_binary_crossentropy(pos_weight=pos_weight, neg_weight=neg_weight)
     # Compile the model with binary crossentropy loss
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.00001), 
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), 
               loss=loss_fn, 
               metrics=[IoU])
 
-  
+
 
 
 # Summary of the model to ensure everything is correct
@@ -416,72 +462,3 @@ plt.xlabel('Recall')
 plt.ylabel('Precision')
 plt.grid()
 plt.show()
-
-
-
-
-# Function to visualize input and output saliency map
-def visualize_saliency(rgb_img, depth_img,HHA_img, saliency_map, prediction):
-
-    fig, axes = plt.subplots(1, 5, figsize=(16, 8))
-    axes[0].imshow(rgb_img)
-    axes[0].set_title("RGB Image")
-    
-    axes[1].imshow(depth_img)
-    axes[1].set_title("Depth Image") 
-    
-    axes[2].imshow(HHA_img) 
-    axes[2].set_title("HHA Image")
-    
-    axes[3].imshow(saliency_map[:, :], cmap='gray')
-    axes[3].set_title("Ground Truth Saliency Map")
-    
-    axes[4].imshow(prediction[:, :, 0], cmap='gray')
-    axes[4].set_title("Predicted Saliency Map") 
-    plt.savefig(output_path, format="png")
-    #plt.close()
-    
-   
-
-# Predict saliency map for a sample image from the validation set
-sample_index = 0  # Change this index to visualize different samples
-sample_rgb = rgb_images_test[sample_index:sample_index+1]  # Take a single RGB image
-sample_depth = depth_images_test[sample_index:sample_index+1]  # Take the corresponding depth image 
-sample_HHA = HHA_images_test[sample_index:sample_index+1]  # Take the corresponding HHA image
-sample_saliency = saliency_maps_test[sample_index]  # Ground truth saliency map for comparison
-
-# Predict saliency map
-predicted_saliency = model.predict([sample_rgb, sample_HHA])
-print(f"predicted shape: {predicted_saliency.shape}")
-print("saliency map output values:",predicted_saliency[0,:,:,0])
-print("saliency map output values:",predicted_saliency[0,25,25,0])
-
-for sample_index in range(len(rgb_images_val)):
-    # Visualize the result 
-
-    # Predict saliency map for a sample image from the validation set
-    # Change this index to visualize different samples
-    sample_rgb = rgb_images_val[sample_index:sample_index+1]  # Take a single RGB image
-    sample_depth = depth_images_val[sample_index:sample_index+1]  # Take the corresponding depth image 
-    sample_HHA = HHA_images_val[sample_index:sample_index+1]  # Take the corresponding HHA image
-    sample_saliency = saliency_maps_val[sample_index]  # Ground truth saliency map for comparison
-
-    # Predict saliency map
-    predicted_saliency = model.predict([sample_rgb, sample_HHA])
-    print(f"predicted shape: {predicted_saliency.shape}")
-
-
-    
-    output_folder = r"C:\Users\mikke\Documents\GitHub\P7-Robotics\predictions_visualizations"  # Specify your desired folder
-
-
-    # Ensure the folder exists
-    os.makedirs(output_folder, exist_ok=True)
-    output_file = f"example_plot_{sample_index}.png"
-    # Full path to save the plot
-    output_path = os.path.join(output_folder, output_file)
-    
-    visualize_saliency(sample_rgb[0], sample_depth[0],sample_HHA[0], sample_saliency, predicted_saliency[0])
-
-    print(f"Plot saved at: {output_path}")
- 
