@@ -1,5 +1,6 @@
 
 import tensorflow as tf
+from tensorflow.keras import backend as K
 from keras import layers, Model
 import matplotlib.pyplot as plt
 import os
@@ -35,6 +36,19 @@ def IoU_loss(predicted_mask, ground_truth_mask):
     #print(iou)
     return iou
 
+def dice_loss(y_true, y_pred, smooth=1e-6):
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
+ 
+    y_true_flat = tf.reshape(y_true, [-1])
+    y_pred_flat = tf.reshape(y_pred, [-1])
+ 
+    intersection = tf.reduce_sum(y_true_flat * y_pred_flat)
+    denominator = tf.reduce_sum(y_true_flat) + tf.reduce_sum(y_pred_flat)
+ 
+    dice_coeff = (2.0 * intersection + smooth) / (denominator + smooth)
+ 
+    return 1.0 - dice_coeff
 
 def weighted_dice_loss(y_true, y_pred, smooth=1e-6):
     y_true = tf.cast(y_true, tf.float32)
@@ -126,7 +140,23 @@ def load_dataset(rgb_folder, depth_folder, saliency_folder, HHA_folder, target_s
         HHA_images.append(HHA_image)                                                        #Add preprocessed HHA images to list
         
     return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps), np.array(HHA_images)  #Convert lists to Numpy arrays as an output
-    
+
+def IoU(y_true, y_pred, threshold=0.5):
+    """
+    Computes Intersection over Union (IoU) metric.
+    y_true: Ground truth mask (binary).
+    y_pred: Predicted mask (binary).
+    threshold: Threshold for converting predicted probabilities to binary (default 0.5).
+    """
+    # Apply threshold to predicted values (e.g., sigmoid output) to get binary mask
+    y_pred = K.cast(K.greater(y_pred, threshold), K.floatx())
+   
+    # Calculate intersection and union
+    intersection = K.sum(y_true * y_pred)  # True Positive pixels
+    union = K.sum(y_true) + K.sum(y_pred) - intersection  # True Positives + False Positives + False Negatives
+   
+    # Avoid division by zero by adding a small epsilon
+    return intersection / (union + K.epsilon())    
 
    
 # Dataset folder paths
@@ -173,7 +203,6 @@ class Saliency(Model):
     def __init__(self):
         super(Saliency, self).__init__()
 
-        '''
         self.conv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
         self.maxpool1 = layers.MaxPooling2D((3, 3), strides=1)
         self.norm1 =  layers.BatchNormalization() 
@@ -189,21 +218,19 @@ class Saliency(Model):
         self.trapos1 = layers.Conv2DTranspose(128, (3, 3), strides=2, padding='same', activation='relu')  # 50 > 100
         self.trapos2 = layers.Conv2DTranspose(64, (4, 4), strides=2, padding='same', activation='relu')  # 100 > 200
         self.trapos3 = layers.Conv2DTranspose(3, (25, 25), strides=1, padding='valid', activation='sigmoid') # 224
-        '''
+        
 
         # Fusion and final layer
         self.fuse_conv = layers.Conv2D(1, (1, 1), activation='sigmoid') 
 
         self.drouput = layers.Dropout(0.5) 
 
-        '''
         #Trash model
         self.trash1 = layers.Conv2D(2, (3,3), activation='relu',padding='valid')
         self.trash2 = layers.MaxPooling2D((3, 3),strides=1)
         self.trash3 = layers.BatchNormalization()
         self.trash4 = layers.Dropout(0.5)
         self.trash5 = layers.Conv2DTranspose(3, (5, 5), activation='sigmoid', strides=1, padding='valid')
-        '''
 
         #The shallow model
         self.shallowConv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
@@ -215,13 +242,11 @@ class Saliency(Model):
         self.shallownorm2 =  layers.BatchNormalization() 
         
         self.shallowdilated_conv3 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
-        
         self.shallowdilated_conv4 = layers.Conv2D(384, (3, 3), strides=1 , padding='same', dilation_rate=4, activation='relu')
         
         self.shallowtrapos1 = layers.Conv2DTranspose(128, (3, 3), strides=2, padding='same', activation='relu')  # 50 > 100
         self.shallowtrapos2 = layers.Conv2DTranspose(64, (4, 4), strides=2, padding='same', activation='relu')  # 100 > 200
         self.shallowtrapos3 = layers.Conv2DTranspose(3, (25, 25), strides=1, padding='valid', activation='sigmoid') # 224
-        #self.shallowtrapos4 = layers.Conv2DTranspose(3, (3, 3), strides=1, padding='valid', activation='sigmoid')
 
 
 
@@ -244,15 +269,14 @@ class Saliency(Model):
             x = self.shallowmaxpool2(x)
             x = self.shallownorm2(x)
 
-            x = self.shallowdilated_conv3(x)
-            x = self.shallowdilated_conv4(x)
+            #x = self.shallowdilated_conv3(x)
+            #x = self.shallowdilated_conv4(x)
 
             x = self.drouput(x)
 
             x = self.shallowtrapos1(x) 
             x = self.shallowtrapos2(x) 
             x = self.shallowtrapos3(x)
-            #x = self.shallowtrapos4(x)
             #'''
 
             return x  
@@ -305,7 +329,7 @@ model = Saliency()
 optimizer = tf.keras.optimizers.Adam()
 
 if loss_function == 'dice_loss': 
-    model.compile(optimizer=optimizer, loss=weighted_dice_loss, metrics=['accuracy'])
+    model.compile(optimizer=optimizer, loss=dice_loss, metrics=[IoU])
 elif loss_function == 'binary_crossentropy':
     loss_fn = weighted_binary_crossentropy(pos_weight=pos_weight, neg_weight=neg_weight)
     model.compile(optimizer=optimizer, loss=loss_fn, metrics=['accuracy']) 
@@ -329,8 +353,8 @@ history = model.fit(
 plt.figure(figsize=(14, 5))
 # Plot accuracy
 plt.subplot(1, 2, 1)
-plt.plot(history.history['accuracy'], label='Training Accuracy')
-plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.plot(history.history['IoU'], label='Training Accuracy')
+plt.plot(history.history['val_IoU'], label='Validation Accuracy')
 plt.xlabel('Epochs')
 plt.ylabel('Accuracy') 
 plt.ylim(0, 1)
