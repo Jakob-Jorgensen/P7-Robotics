@@ -441,11 +441,25 @@ for sample_index in range(len(rgb_images_val)):
     # Predict saliency map for a sample image from the validation set
     # Change this index to visualize different samples
     sample_rgb = rgb_images_val[sample_index:sample_index+1]  # Take a single RGB image
-    sample_depth = depth_images_val[sample_index:sample_index+1]  # Take the corresponding depth image 
+    #sample_depth = depth_images_val[sample_index:sample_index+1]  # Take the corresponding depth image 
     sample_HHA = HHA_images_val[sample_index:sample_index+1]  # Take the corresponding HHA image
     sample_saliency = saliency_maps_val[sample_index]  # Ground truth saliency map for comparison
 
     # Predict saliency map
     predicted_saliency = model.predict([sample_rgb, sample_HHA])
     print(f"predicted shape: {predicted_saliency.shape}")
-    visualize_saliency(sample_rgb[0], sample_depth[0],sample_HHA[0], sample_saliency, predicted_saliency[0])
+
+
+    
+    output_folder = r"C:\Users\mikke\Documents\GitHub\P7-Robotics\predictions_visualizations"  # Specify your desired folder
+
+
+    # Ensure the folder exists
+    os.makedirs(output_folder, exist_ok=True)
+    output_file = f"example_plot_{sample_index}.png"
+    # Full path to save the plot
+    output_path = os.path.join(output_folder, output_file)
+    
+    visualize_saliency(sample_rgb[0],sample_HHA[0], sample_saliency, predicted_saliency[0])
+
+    print(f"Plot saved at: {output_path}")
