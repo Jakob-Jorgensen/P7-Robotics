@@ -401,7 +401,6 @@ history = model.fit(
     batch_size=16,
     validation_data=([rgb_images_val, HHA_images_val], saliency_maps_val)  # Validation data
 )
-
 plt.figure(figsize=(14, 5))
 # Plot accuracy
 plt.subplot(1, 2, 1)
@@ -431,14 +430,13 @@ model.save_weights('trainmodel.weights.h5')                                #Save
 
 
 # Function to visualize input and output saliency map
-def visualize_saliency(rgb_img,HHA_img, saliency_map, prediction):
+def visualize_saliency(rgb_img, HHA_img, saliency_map, prediction):
+
+    
 
     fig, axes = plt.subplots(1, 5, figsize=(16, 8))
     axes[0].imshow(rgb_img)
     axes[0].set_title("RGB Image")
-    
-    #axes[1].imshow(depth_img)
-    #axes[1].set_title("Depth Image") 
     
     axes[2].imshow(HHA_img) 
     axes[2].set_title("HHA Image")
@@ -447,10 +445,26 @@ def visualize_saliency(rgb_img,HHA_img, saliency_map, prediction):
     axes[3].set_title("Ground Truth Saliency Map")
     
     axes[4].imshow(prediction[:, :, 0], cmap='gray')
-    axes[4].set_title("Predicted Saliency Map") 
-    plt.show()
+    axes[4].set_title("Predicted Saliency Map")
     
    
+
+# Predict saliency map for a sample image from the validation set
+sample_index = 0  # Change this index to visualize different samples
+sample_rgb = rgb_images[sample_index:sample_index+1]  # Take a single RGB image
+#sample_depth = depth_images[sample_index:sample_index+1]  # Take the corresponding depth image 
+sample_HHA = HHA_images[sample_index:sample_index+1]  # Take the corresponding HHA image
+sample_saliency = saliency_maps[sample_index]  # Ground truth saliency map for comparison
+
+# Predict saliency map
+predicted_saliency = model.predict([sample_rgb, sample_HHA])
+print(f"predicted shape: {predicted_saliency.shape}")
+print("saliency map output values:",predicted_saliency[0,:,:,0])
+print("saliency map output values:",predicted_saliency[0,25,25,0])
+
+# Visualize the result
+visualize_saliency(sample_rgb[0],sample_HHA[0], sample_saliency, predicted_saliency[0])
+
 
 #BELOW ABOUT PRECISION-RECALL METHOD
 
@@ -484,8 +498,43 @@ plt.title('Precision-Recall Curve')
 plt.xlabel('Recall')
 plt.ylabel('Precision')
 plt.grid()
+plt.show()
 
 
+
+
+# Function to visualize input and output saliency map
+def visualize_saliency(rgb_img, HHA_img, saliency_map, prediction):
+
+    fig, axes = plt.subplots(1, 5, figsize=(16, 8))
+    axes[0].imshow(rgb_img)
+    axes[0].set_title("RGB Image")
+    
+    axes[2].imshow(HHA_img) 
+    axes[2].set_title("HHA Image")
+    
+    axes[3].imshow(saliency_map[:, :], cmap='gray')
+    axes[3].set_title("Ground Truth Saliency Map")
+    
+    axes[4].imshow(prediction[:, :, 0], cmap='gray')
+    axes[4].set_title("Predicted Saliency Map") 
+    plt.savefig(output_path, format="png")
+    #plt.close()
+    
+   
+
+# Predict saliency map for a sample image from the validation set
+#sample_index = 0  # Change this index to visualize different samples
+#sample_rgb = rgb_images[sample_index:sample_index+1]  # Take a single RGB image
+#sample_depth = depth_images[sample_index:sample_index+1]  # Take the corresponding depth image 
+#sample_HHA = HHA_images[sample_index:sample_index+1]  # Take the corresponding HHA image
+#sample_saliency = saliency_maps[sample_index]  # Ground truth saliency map for comparison
+
+# Predict saliency map
+predicted_saliency = model.predict([sample_rgb, sample_HHA])
+print(f"predicted shape: {predicted_saliency.shape}")
+print("saliency map output values:",predicted_saliency[0,:,:,0])
+print("saliency map output values:",predicted_saliency[0,25,25,0])
 
 for sample_index in range(len(rgb_images_val)):
     # Visualize the result 
