@@ -11,9 +11,9 @@ from sklearn.metrics import average_precision_score
 
 ##############################################################
 #main_path = f"C:/Users/jakob/Downloads/Dataset_3.1" 
-main_path  = r"C:\Users\astri\Downloads\Dataset_3.1"
+main_path  = r"C:\Users\astri\Downloads\Augmented_Dataset_Version2\Augmented_Dataset_Version2"
 loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
-epochs = 5
+epochs = 25
 If_trash = True # Chose between trash mode or running the real model
 Augmented_data = True
 ##############################################################
@@ -230,7 +230,7 @@ else:
 
     # Check dataset shapes
     print(f"RGB images shape: {rgb_images.shape}")
-    print(f"Depth images shape: {depth_images.shape}")
+    #print(f"Depth images shape: {depth_images.shape}")
     print(f"Saliency maps shape: {saliency_maps.shape}") 
     print(f"HHA images shape: {HHA_images.shape}") 
 
@@ -238,7 +238,7 @@ else:
 
 # Check dataset shapes
 print(f"RGB images shape: {rgb_images.shape}")
-print(f"Depth images shape: {depth_images.shape}")
+#print(f"Depth images shape: {depth_images.shape}")
 print(f"Saliency maps shape: {saliency_maps.shape}") 
 print(f"HHA images shape: {HHA_images.shape}") 
 
@@ -321,7 +321,7 @@ class Saliency(Model):
             x = self.shallowmaxpool2(x)
             x = self.shallownorm2(x)
 
-            #x = self.shallowdilated_conv3(x)
+            x = self.shallowdilated_conv3(x)
             #x = self.shallowdilated_conv4(x)
 
             x = self.drouput(x)
@@ -552,7 +552,7 @@ for sample_index in range(len(rgb_images_val)):
 
 
     
-    output_folder = r"C:\Users\mikke\Documents\GitHub\P7-Robotics\predictions_visualizations"  # Specify your desired folder
+    output_folder = r"C:\Users\astri\Downloads\Images_CNN_2conv"  # Specify your desired folder
 
 
     # Ensure the folder exists
