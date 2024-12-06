@@ -106,7 +106,7 @@ class DualStreamRecorder(Node):
         except Exception as e:
             self.get_logger().error(f'Error processing color image: {e}')
 
-def start_recording(bag_path, enable_resize=True):
+def start_recording(bag_path):
     bag_name = os.path.splitext(os.path.basename(bag_path))[0]
 
     play_command = ['ros2', 'bag', 'play', bag_path, '--rate', '0.2',"--read-ahead-queue-size", "500"]
