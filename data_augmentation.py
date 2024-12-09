@@ -18,13 +18,10 @@ for output_dir in [output_gt_dir, output_rgb_dir, output_depth_dir]:
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-# Define a random rotation angle
-random_degree = random.uniform(-30, 30)
-
 # Transformation: Rotate and Color Jitter
 def get_rgb_depth_transform():
     return transforms.Compose([
-        transforms.RandomRotation((-8, 8)),  # Rotate within the same range
+        transforms.RandomRotation((-8, -8)),  # Rotate within the same range
         transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.1),  # Apply Color Jitter
         transforms.RandomAffine(degrees=0, scale=(0.8, 1.0)),  # Scale between 80% and 120%
         transforms.RandomAffine(degrees=0, translate=(0.1, 0.1))  # Translate up to 10%
@@ -33,7 +30,7 @@ def get_rgb_depth_transform():
 # Transformation for Ground Truth (only rotation)
 def get_gt_transform():
     return transforms.Compose([
-        transforms.RandomRotation((-8, 8)),  # Rotate within the same range
+        transforms.RandomRotation((-8, -8)),  # Rotate within the same range
         transforms.RandomAffine(degrees=0, scale=(0.8, 1.0)),  # Scale between 80% and 120%
         transforms.RandomAffine(degrees=0, translate=(0.1, 0.1))  # Translate up to 10%
     ])
