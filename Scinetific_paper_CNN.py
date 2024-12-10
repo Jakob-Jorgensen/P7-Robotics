@@ -12,7 +12,7 @@ from sklearn.metrics import average_precision_score
 ##############################################################
 #main_path = f"C:/Users/jakob/Downloads/Dataset_3.1" 
 main_path  = r"C:\Users\astri\Downloads\Augmented_Dataset_Version2\Augmented_Dataset_Version2"
-loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
+loss_function = 'binary_crossentropy' # Chose between 'dice_loss' or 'binary_crossentropy'
 epochs = 12
 If_trash = True # Chose between trash mode or running the real model
 Augmented_data = True
@@ -25,7 +25,6 @@ def weighted_binary_crossentropy(pos_weight, neg_weight):
                 neg_weight * (1 - y_true) * tf.math.log(1 - y_pred + 1e-8))
         return tf.reduce_mean(bce)
     return loss_fn
-
 
 def IoU_loss(predicted_mask, ground_truth_mask):
     # Calculate soft intersection and union
@@ -255,7 +254,6 @@ class Saliency(Model):
     def __init__(self):
         super(Saliency, self).__init__()
 
-        '''
         self.conv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
         self.maxpool1 = layers.MaxPooling2D((3, 3), strides=1)
         self.norm1 =  layers.BatchNormalization() 
@@ -271,21 +269,19 @@ class Saliency(Model):
         self.trapos1 = layers.Conv2DTranspose(128, (3, 3), strides=2, padding='same', activation='relu')  # 50 > 100
         self.trapos2 = layers.Conv2DTranspose(64, (4, 4), strides=2, padding='same', activation='relu')  # 100 > 200
         self.trapos3 = layers.Conv2DTranspose(3, (25, 25), strides=1, padding='valid', activation='sigmoid') # 224
-        '''
 
         # Fusion and final layer
         self.fuse_conv = layers.Conv2D(1, (1, 1), activation='sigmoid') 
 
         self.drouput = layers.Dropout(0.5) 
 
-        '''
         #Trash model
         self.trash1 = layers.Conv2D(2, (3,3), activation='relu',padding='valid')
         self.trash2 = layers.MaxPooling2D((3, 3),strides=1)
         self.trash3 = layers.BatchNormalization()
         self.trash4 = layers.Dropout(0.5)
         self.trash5 = layers.Conv2DTranspose(3, (5, 5), activation='sigmoid', strides=1, padding='valid')
-        '''
+        
         
         #The shallow model
         self.shallowConv1 = layers.Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid')
@@ -387,7 +383,7 @@ if loss_function == 'dice_loss':
     model.compile(optimizer=optimizer, loss=dice_loss, metrics=[IoU])
 elif loss_function == 'binary_crossentropy':
     loss_fn = weighted_binary_crossentropy(pos_weight=pos_weight, neg_weight=neg_weight)
-    model.compile(optimizer=optimizer, loss=loss_fn, metrics=['accuracy']) 
+    model.compile(optimizer=optimizer, loss=loss_fn, metrics=[IoU]) 
 elif loss_function == 'IoU_Loss': 
     model.compile(optimizer=optimizer, loss=IoU_loss, metrics=['accuracy']) 
 
@@ -401,9 +397,10 @@ history = model.fit(
     [rgb_images, HHA_images],  # Inputs as a list
     saliency_maps,               # Targets
     epochs=epochs, 
-    batch_size=24,
+    batch_size=16,
     validation_data=([rgb_images_val, HHA_images_val], saliency_maps_val)  # Validation data
 )
+
 plt.figure(figsize=(14, 5))
 # Plot accuracy
 plt.subplot(1, 2, 1)
@@ -434,8 +431,6 @@ model.save_weights('trainmodel.weights.h5')                                #Save
 
 # Function to visualize input and output saliency map
 def visualize_saliency(rgb_img, HHA_img, saliency_map, prediction):
-
-    
 
     fig, axes = plt.subplots(1, 5, figsize=(16, 8))
     axes[0].imshow(rgb_img)
@@ -555,7 +550,7 @@ for sample_index in range(len(rgb_images_val)):
 
 
     
-    output_folder = r"C:\Users\astri\Downloads\Images_CNN_2conv"  # Specify your desired folder
+    output_folder = r"C:\Users\astri\Downloads\Images_CNN_shallow_cross"  # Specify your desired folder
 
 
     # Ensure the folder exists
