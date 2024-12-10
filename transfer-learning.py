@@ -209,9 +209,9 @@ print('White weight: ', pos_weight, ' Black Weight: ', neg_weight)
 def attention_gate(x, g, inter_channel=32):
     """
     Attention Gate that focuses on relevant features from the skip connections
-    x: input feature map from encoder
-    g: input feature map from decoder
-    inter_channel: number of intermediate channels for the attention layer
+    x = input feature map from encoder
+    g = input feature map from decoder
+    inter_channel = number of intermediate channels for the attention layer
     """
     # Applying a convolution to both the encoder and decoder features
     theta_x = layers.Conv2D(inter_channel, (1, 1), padding='same')(x)  # Apply 1x1 conv to encoder output
@@ -282,15 +282,16 @@ depth_stream = resNet50_depth(depth_input)
 # RGB Stream processing
 rgb_stream = resNet50_rgb(rgb_input)
 rgb_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(rgb_stream)
-#rgb_stream = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(rgb_stream)
+rgb_skip = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(rgb_stream)
+# Skip is X
 
 # Apply attention gate for skip connection from RGB stream
-#rgb_stream_attn = attention_gate(rgb_stream, rgb_stream)
+rgb_stream_attn = attention_gate(x=rgb_skip, g=rgb_stream)
 
-rgb_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (28, 28, 256)
-rgb_stream = layers.Conv2D(128, (3, 3), padding='same', activation='sigmoid')(rgb_stream)
+rgb_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream_attn)  # (28, 28, 256)
+rgb_stream = layers.Conv2D(128, (3, 3), padding='same', activation='relu')(rgb_stream)
 rgb_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)  # (56, 56, 128)
-rgb_stream = layers.Conv2D(64, (3, 3), padding='same', activation='sigmoid')(rgb_stream)
+rgb_stream = layers.Conv2D(64, (3, 3), padding='same', activation='relu')(rgb_stream)
 rgb_stream = layers.Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (112, 112, 64)
 rgb_stream = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(rgb_stream)
 rgb_stream = layers.Conv2DTranspose(32, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream)   # (224, 224, 32)
@@ -303,12 +304,13 @@ rgb_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(rgb_
 depth_stream = resNet50_depth(depth_input)
 
 depth_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(depth_stream)
-#depth_stream = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(depth_stream)
+depth_skip = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(depth_stream)
+# Skip is X
 
 # Apply attention gate for skip connection from Depth stream
-#depth_stream_attn = attention_gate(depth_stream, depth_stream)
+depth_stream_attn = attention_gate(x = depth_skip, g= depth_stream)
 
-depth_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (28, 28, 256)
+depth_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream_attn)  # (28, 28, 256)
 depth_stream = layers.Conv2D(128, (3, 3), padding='same', activation='relu')(depth_stream)
 depth_stream = layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream)  # (56, 56, 128)
 depth_stream = layers.Conv2D(64, (3, 3), padding='same', activation='relu')(depth_stream)
