@@ -17,7 +17,6 @@ import cv2
 ##############################################################
   
 main_path = f"C:/Users/mikke/Downloads/Dataset_3.2/Dataset_3.2"  
-save_path = 'C:/Users/mikke/Documents/GitHub/P7-Robotics/augmented_transfer-learning.py/model_architecture.json'
 loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
 Augmented_data = True # Chose between True or False, True if you want to use augmented data 
 epochs = 1    
@@ -385,11 +384,6 @@ plt.legend()
 
 model.summary()
 model.save_weights('trainmodel.weights.h5')                                #Save model
-
-# Create directory for save file
-directory = os.path.dirname(save_path)
-if not os.path.exists(directory):
-    os.makedirs(directory)
 
 # Save model architecture
 with open('model_architecture.json', 'w') as json_file:
