@@ -4,10 +4,12 @@ from tensorflow.keras.layers import Input
 from tensorflow.keras.models import clone_model
 from sklearn.metrics import precision_recall_curve, average_precision_score
 from tensorflow.keras import backend as K
+from tensorflow.keras.models import model_from_json
 import tensorflow as tf
 from keras import layers, Model
 import matplotlib.pyplot as plt
 import os
+import json
 import numpy as np
 import cv2
 
@@ -15,9 +17,10 @@ import cv2
 ##############################################################
   
 main_path = f"C:/Users/mikke/Downloads/Dataset_3.2/Dataset_3.2"  
+save_path = 'C:/Users/mikke/Documents/GitHub/P7-Robotics/augmented_transfer-learning.py/model_architecture.json'
 loss_function = 'dice_loss' # Chose between 'dice_loss' or 'binary_crossentropy'
 Augmented_data = True # Chose between True or False, True if you want to use augmented data 
-epochs = 25     
+epochs = 1    
 
 
 ##############################################################
@@ -26,7 +29,7 @@ def IoU(y_true, y_pred, threshold=0.5):
     """
     Computes Intersection over Union (IoU) metric.
     y_true: Ground truth mask (binary).
-    y_pred: Predicted mask (binary).
+    y_pred: Predicted mask (binary).  
     threshold: Threshold for converting predicted probabilities to binary (default 0.5).
     """
     # Apply threshold to predicted values (e.g., sigmoid output) to get binary mask
@@ -221,7 +224,7 @@ def attention_gate(x, g, inter_channel=32):
     add_xg = layers.Add()([theta_x, phi_g])
     add_xg = layers.Activation('relu')(add_xg)
 
-    # Applying a final convolution for attention gating
+    # Making the attention map
     psi = layers.Conv2D(1, (1, 1), padding='same', activation='sigmoid')(add_xg)
     
     # Multiply attention map with encoder features
@@ -283,10 +286,10 @@ depth_stream = resNet50_depth(depth_input)
 rgb_stream = resNet50_rgb(rgb_input)
 rgb_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(rgb_stream)
 rgb_skip = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(rgb_stream)
-# Skip is X
+# Skip is G
 
 # Apply attention gate for skip connection from RGB stream
-rgb_stream_attn = attention_gate(x=rgb_skip, g=rgb_stream)
+rgb_stream_attn = attention_gate(x=rgb_stream, g=rgb_skip)
 
 rgb_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream_attn)  # (28, 28, 256)
 rgb_stream = layers.Conv2D(128, (3, 3), padding='same', activation='relu')(rgb_stream)
@@ -299,7 +302,6 @@ rgb_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(rgb_
 # There is a convolutional layer to help preserve details before upsampling
 
 
-
 # Depth Stream processing (Fix here: Using depth_stream, not rgb_stream)
 depth_stream = resNet50_depth(depth_input)
 
@@ -308,7 +310,7 @@ depth_skip = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(depth
 # Skip is X
 
 # Apply attention gate for skip connection from Depth stream
-depth_stream_attn = attention_gate(x = depth_skip, g= depth_stream)
+depth_stream_attn = attention_gate(x = depth_stream, g= depth_skip)
 
 depth_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream_attn)  # (28, 28, 256)
 depth_stream = layers.Conv2D(128, (3, 3), padding='same', activation='relu')(depth_stream)
@@ -322,10 +324,8 @@ depth_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(de
 
 # Concatenate the RGB and Depth streams
 fused = layers.Concatenate()([rgb_stream, depth_stream])
-
 # Apply final convolution to produce the saliency map (binary output)
 fused = layers.Conv2D(1, kernel_size=(1, 1), activation='sigmoid')(fused)
-
 # Reshape to match output dimensions
 saliency_output = layers.Reshape((224, 224, 1))(fused)
 
@@ -345,8 +345,6 @@ elif loss_function == 'binary_crossentropy':
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001), 
               loss=loss_fn, 
               metrics=[IoU])
-
-  
 
 
 # Summary of the model to ensure everything is correct
@@ -388,6 +386,14 @@ plt.legend()
 model.summary()
 model.save_weights('trainmodel.weights.h5')                                #Save model
 
+# Create directory for save file
+directory = os.path.dirname(save_path)
+if not os.path.exists(directory):
+    os.makedirs(directory)
+
+# Save model architecture
+with open('model_architecture.json', 'w') as json_file:
+    json_file.write(model.to_json())
 
 # Function to visualize input and output saliency map
 def visualize_saliency(rgb_img, HHA_img, saliency_map, prediction):
@@ -479,16 +485,7 @@ def visualize_saliency(rgb_img, HHA_img, saliency_map, prediction):
     axes[4].imshow(prediction[:, :, 0], cmap='gray')
     axes[4].set_title("Predicted Saliency Map") 
     plt.savefig(output_path, format="png")
-    #plt.close()
     
-   
-
-# Predict saliency map for a sample image from the validation set
-#sample_index = 0  # Change this index to visualize different samples
-#sample_rgb = rgb_images[sample_index:sample_index+1]  # Take a single RGB image
-#sample_depth = depth_images[sample_index:sample_index+1]  # Take the corresponding depth image 
-#sample_HHA = HHA_images[sample_index:sample_index+1]  # Take the corresponding HHA image
-#sample_saliency = saliency_maps[sample_index]  # Ground truth saliency map for comparison
 
 # Predict saliency map
 predicted_saliency = model.predict([sample_rgb, sample_HHA])
@@ -509,11 +506,8 @@ for sample_index in range(len(rgb_images_val)):
     # Predict saliency map
     predicted_saliency = model.predict([sample_rgb, sample_HHA])
     print(f"predicted shape: {predicted_saliency.shape}")
-
-
     
     output_folder = r"C:\Users\mikke\Documents\GitHub\P7-Robotics\predictions_visualizations"  # Specify your desired folder
-
 
     # Ensure the folder exists
     os.makedirs(output_folder, exist_ok=True)
