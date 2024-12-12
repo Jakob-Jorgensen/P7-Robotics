@@ -8,6 +8,69 @@ from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
 
 
+# Function to preprocess images
+def preprocess_image(image_path, target_size):
+    image = cv2.imread(image_path)
+    image = cv2.resize(image, target_size)
+    image = image.astype('float32') / 255.0
+    return image
+
+# Function to load datasets
+def load_dataset(rgb_folder, depth_folder, gt_folder, target_size=(360, 180)):
+    rgb_images, depth_images, saliency_maps = [], [], []
+
+    # List all RGB files (assumes files are named consistently across folders)
+    rgb_files = sorted(os.listdir(rgb_folder))
+
+    for file_name in rgb_files:
+        # Construct corresponding file paths
+        rgb_path = os.path.join(rgb_folder, file_name)
+        depth_path = os.path.join(depth_folder, file_name)
+        gt_path = os.path.join(gt_folder, file_name)
+    
+
+        # Check if all files exist
+        if os.path.exists(rgb_path) and os.path.exists(depth_path) and os.path.exists(gt_path):
+            # Load and preprocess images
+            rgb_image = preprocess_image(rgb_path, target_size)
+            depth_image = preprocess_image(depth_path, target_size)
+            saliency_map = preprocess_image(gt_path, target_size)[:, :, :1]  # Convert Saliency maps to single-channel format
+
+            # Append to respective lists
+            rgb_images.append(rgb_image)
+            depth_images.append(depth_image)
+            saliency_maps.append(saliency_map)
+        else:
+            print(f"Warning: Missing file(s) for {file_name}. Skipping...")
+
+    # Convert lists to NumPy arrays
+    return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps)
+
+# Dataset folder paths
+val_rgb_folder = r"C:\Users\eymen\Documents\project1\Augmented_Dataset_Version2\Validation\RGB"
+val_depth_folder = r"C:\Users\eymen\Documents\project1\Augmented_Dataset_Version2\Validation\HHA"
+val_saliency_folder = r"C:\Users\eymen\Documents\project1\Augmented_Dataset_Version2\Validation\GT"
+
+# Original and augmented folder paths
+train_rgb_folder = r"C:\Users\eymen\Documents\project1\Augmented_Dataset_Version2\Training\RGB"
+train_depth_folder = r"C:\Users\eymen\Documents\project1\Augmented_Dataset_Version2\Training\HHA"
+train_saliency_folder = r"C:\Users\eymen\Documents\project1\Augmented_Dataset_Version2\Training\GT"
+
+
+#Loading datasets
+rgb_train, depth_train, saliency_train = load_dataset(train_rgb_folder, train_depth_folder, train_saliency_folder)
+rgb_val, depth_val, saliency_val = load_dataset(val_rgb_folder, val_depth_folder, val_saliency_folder)
+
+
+# Check dataset shapes
+print(f"RGB Train Shape: {rgb_train.shape}")
+print(f"Depth Train Shape: {depth_train.shape}")
+print(f"GT Train Shape: {saliency_train.shape}")
+print(f"RGB Validation Shape: {rgb_val.shape}")
+print(f"Depth Validation Shape: {depth_val.shape}")
+print(f"GT Validation Shape: {saliency_val.shape}")
+
+
 # Define the CNN architecture for RGB-D saliency detection
 class Saliency(Model):
     def __init__(self):
@@ -82,6 +145,7 @@ def iou_metric(y_true, y_pred):
     return intersection / (union + tf.keras.backend.epsilon())
 
 
+
 # Instantiate the model
 model = Saliency()
 
@@ -97,5 +161,50 @@ model([dummy_rgb, dummy_depth])  # Modeli bir kere çağır
 model.load_weights('modelv7.keras')
 
 
+# Function to predict and save predictions
+def predict_and_save_predictions(model, test_rgb_folder, test_depth_folder, save_dir, target_size=(360, 180)):
+    # Create output directory
+    os.makedirs(save_dir, exist_ok=True)
 
+    # List all test RGB files (assumes filenames are consistent across RGB and Depth folders)
+    test_rgb_files = sorted(os.listdir(test_rgb_folder))
+
+    for i, file_name in enumerate(test_rgb_files):
+        # Construct file paths
+        rgb_path = os.path.join(test_rgb_folder, file_name)
+        depth_path = os.path.join(test_depth_folder, file_name)
+
+        # Check if both files exist
+        if os.path.exists(rgb_path) and os.path.exists(depth_path):
+            # Preprocess RGB and Depth images
+            rgb_image = preprocess_image(rgb_path, target_size)
+            depth_image = preprocess_image(depth_path, target_size)
+
+            # Expand dimensions to match model input shape (batch size of 1)
+            rgb_input = np.expand_dims(rgb_image, axis=0)
+            depth_input = np.expand_dims(depth_image, axis=0)
+
+            # Generate prediction
+            prediction = model([rgb_input, depth_input]).numpy()
+
+            # Post-process prediction (e.g., threshold for binary output)
+            prediction = (prediction[0, :, :, 0] > 0.5).astype('uint8') * 255  # Convert to binary mask
+
+            # Save prediction as an image
+            save_path = os.path.join(save_dir, f"prediction_{i + 1}.png")
+            cv2.imwrite(save_path, prediction)
+
+            print(f"Saved prediction for {file_name} at {save_path}")
+        else:
+            print(f"Warning: Missing RGB or Depth file for {file_name}. Skipping...")
+
+# Paths to test folders
+test_rgb_folder = r"C:\Users\eymen\Documents\project1\Final_Dataset\Testing\RGB2"
+test_depth_folder = r"C:\Users\eymen\Documents\project1\Final_Dataset\Testing\HHA2"
+
+# Directory to save predictions
+save_predictions_dir = r"C:\Users\eymen\Documents\project1\Predictions"
+
+# Run prediction and save results
+predict_and_save_predictions(model, test_rgb_folder, test_depth_folder, save_predictions_dir)
 
