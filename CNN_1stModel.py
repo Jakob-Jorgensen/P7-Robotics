@@ -46,7 +46,7 @@ def load_dataset(rgb_folder, depth_folder, gt_folder, target_size=(360, 180)):
     return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps)
 
 # Dataset folder paths
-val_rgb_folder = r"C:\Users\eymen\Documents\project1\Augmented_Dataset_Version2\Training\RGB"
+val_rgb_folder = r"C:\Users\eymen\Documents\project1\Augmented_Dataset_Version2\Validation\RGB"
 val_depth_folder = r"C:\Users\eymen\Documents\project1\Augmented_Dataset_Version2\Validation\HHA"
 val_saliency_folder = r"C:\Users\eymen\Documents\project1\Augmented_Dataset_Version2\Validation\GT"
 
