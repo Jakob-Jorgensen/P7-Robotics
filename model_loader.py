@@ -14,10 +14,10 @@ import cv2
 
                             #### Settings ####
 
-main_path = f"C:/Users/mikke/Downloads/Dataset_3.2/Dataset_3.2"  
-weight_path = r"C:\Users\mikke\Desktop\V9 Dice Loss 25 Epochs 36 Batch Augmented Real Gate Real Constants\trainmodel.weights.h5"
-json_path = r"C:\Users\mikke\Documents\GitHub\P7-Robotics\model_architecture.json"
-image_folder_path = r"C:\Users\mikke\Desktop\V9 Test Images\All Images"
+main_path = f"C:/Users/mikke/Downloads/Dataset_3.2/Dataset_3.2" # Where to find the data set
+weight_path = r"C:\Users\mikke\Desktop\V10 Dice Loss 25 Epochs 36 Batch Augmented Real Gate Real Constants\trainmodel.weights.h5" # Trained Weights
+json_path = r"C:\Users\mikke\Documents\GitHub\P7-Robotics\model_architecture.json" # Model Architecture JSON
+image_folder_path = r"C:\Users\mikke\Desktop\V10 Test Images\All Images" # Where to save images we generate
 
 
 ############################# LOADING THE MODEL ################################
@@ -55,7 +55,6 @@ def load_dataset(rgb_folder, saliency_folder, HHA_folder, target_size=(224, 224)
     print(f"Found {len(HHA_files)} HHA images.") 
     
     for i, img_file in enumerate(rgb_files):   
-            
         rgb_path = os.path.join(rgb_folder, img_file)       #Make path for each image  
         rgb_image = preprocess_image(rgb_path, target_size,BGR2RGB=True)    
         rgb_images.append(rgb_image)
