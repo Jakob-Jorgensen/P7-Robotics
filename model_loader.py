@@ -15,9 +15,9 @@ import cv2
                             #### Settings ####
 
 main_path = f"C:/Users/mikke/Downloads/Dataset_3.2/Dataset_3.2" # Where to find the data set
-weight_path = r"C:\Users\mikke\Desktop\V10 Dice Loss 25 Epochs 36 Batch Augmented Real Gate Real Constants\trainmodel.weights.h5" # Trained Weights
-json_path = r"C:\Users\mikke\Documents\GitHub\P7-Robotics\model_architecture.json" # Model Architecture JSON
-image_folder_path = r"C:\Users\mikke\Desktop\V10 Test Images\All Images" # Where to save images we generate
+weight_path = r"C:\Users\mikke\Desktop\V2 Dice Loss 25 Epochs 36 Batch Augemented With Gate LR-4\trainmodel.weights.h5" # Trained Weights
+json_path = r"C:\Users\mikke\Desktop\V2 Dice Loss 25 Epochs 36 Batch Augemented With Gate LR-4\model_architecture.json" # Model Architecture JSON
+image_folder_path = r"C:\Users\mikke\Desktop\V2 Test Images" # Where to save images we generate
 
 
 ############################# LOADING THE MODEL ################################

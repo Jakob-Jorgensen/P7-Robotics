@@ -9,7 +9,6 @@ import tensorflow as tf
 from keras import layers, Model
 import matplotlib.pyplot as plt
 import os
-import json
 import numpy as np
 import cv2
 
@@ -284,11 +283,11 @@ depth_stream = resNet50_depth(depth_input)
 # RGB Stream processing
 rgb_stream = resNet50_rgb(rgb_input)
 rgb_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(rgb_stream)
-rgb_skip = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(rgb_stream)
+#rgb_skip = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(rgb_stream)
 # Skip is G
 
 # Apply attention gate for skip connection from RGB stream
-rgb_stream_attn = attention_gate(x=rgb_stream, g=rgb_skip)
+rgb_stream_attn = attention_gate(x=rgb_stream, g=rgb_stream)
 
 rgb_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(rgb_stream_attn)  # (28, 28, 256)
 rgb_stream = layers.Conv2D(128, (3, 3), padding='same', activation='relu')(rgb_stream)
@@ -305,11 +304,11 @@ rgb_stream = layers.Conv2D(3, (3, 3), padding='same', activation='sigmoid')(rgb_
 depth_stream = resNet50_depth(depth_input)
 
 depth_stream = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(depth_stream)
-depth_skip = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(depth_stream)
-# Skip is X
+#depth_skip = layers.Conv2D(512, (3, 3), padding='same', activation='relu')(depth_stream)
+# Skip is G
 
 # Apply attention gate for skip connection from Depth stream
-depth_stream_attn = attention_gate(x = depth_stream, g= depth_skip)
+depth_stream_attn = attention_gate(x = depth_stream, g= depth_stream)
 
 depth_stream = layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same', activation='relu')(depth_stream_attn)  # (28, 28, 256)
 depth_stream = layers.Conv2D(128, (3, 3), padding='same', activation='relu')(depth_stream)
@@ -493,7 +492,6 @@ for sample_index in range(len(rgb_images_val)):
     # Predict saliency map for a sample image from the validation set
     # Change this index to visualize different samples
     sample_rgb = rgb_images_val[sample_index:sample_index+1]  # Take a single RGB image
-    #sample_depth = depth_images_val[sample_index:sample_index+1]  # Take the corresponding depth image 
     sample_HHA = HHA_images_val[sample_index:sample_index+1]  # Take the corresponding HHA image
     sample_saliency = saliency_maps_val[sample_index]  # Ground truth saliency map for comparison
 
