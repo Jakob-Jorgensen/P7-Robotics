@@ -227,6 +227,11 @@ training = model.fit(
 
 # Summarize model architecture
 model.summary()
+model.save_weights('trainmodel.weights.h5')                                #Save model
+
+# Save model architecture
+with open('model_architecture.json', 'w') as json_file:
+    json_file.write(model.to_json())
 
 
 #BELOW ABOUT PRECISION-RECALL METHOD
@@ -263,4 +268,3 @@ plt.ylabel('Precision')
 plt.grid()
 plt.show()
 
-model.save_weights('modelv7.keras')
