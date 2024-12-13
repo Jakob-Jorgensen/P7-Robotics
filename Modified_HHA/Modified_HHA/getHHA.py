@@ -10,18 +10,18 @@ from utils.getCameraParam import *
 
 
 ########## Interfacing with the dataset ########## 
-
+main_path = f'Unfiltert_Dataset_3.0/'
 write_to_path = "Path/TO"
-Write_mode = "False" # True or False for writing to path 
+Write_mode = False # True or False for writing to path 
 
 ########## Interfacing with the dataset ##########
 
 '''
 must use 'colour_BGR2GRAY' here, or you will get a different gray-value with what MATLAB gets.
 ''' 
-def getImage(i,vej_depth,vej_rgb):
-    D = cv2.imread(os.path.join(vej_depth, f"{i}"),cv2.COLOR_BGR2GRAY)
-    RGB = cv2.imread(os.path.join(vej_rgb, f"RAW_RGB{i.split('Depth')[1]}")) 
+def getImage(i,path_depth,path_rgb):
+    D = cv2.imread(os.path.join(path_depth, f"{i}"),cv2.COLOR_BGR2GRAY)
+    RGB = cv2.imread(os.path.join(path_rgb, f"RAW_RGB{i.split('Depth')[1]}")) 
     
     return D ,RGB 
 
@@ -119,18 +119,16 @@ if __name__ == "__main__":
         }  
     
 
-    for modes in ["Training","Testing","Validation"]:   
-            
-        main_road = f'Unfiltert_Dataset_3.0/'
-        vej_depth = main_road + f'{modes}/Depth'     
-        vej_rgb =  main_road+ f'{modes}/RGB'    
+    for modes in ["Training","Testing","Validation"]:    
 
-
+        # Create the path to the depth and RGB images    
+        path_depth = main_path + f'{modes}/Depth'     
+        path_rgb =  main_path+ f'{modes}/RGB'    
         count = 0
-        for filnames in os.listdir(vej_depth) :    
+        for filnames in os.listdir(path_depth) :    
 
             # Here we just gets the images D for depth and RGB for colour   
-            D,RGB=getImage(filnames,vej_depth,vej_rgb)  
+            D,RGB=getImage(filnames,path_depth,path_rgb)  
             
       
             # Based on the name of the file we know which camera was used to record the data
@@ -158,28 +156,16 @@ if __name__ == "__main__":
             new_K_RGB, _ = cv2.getOptimalNewCameraMatrix(parameters[pc_recorded]["K_colour"], parameters[pc_recorded]["D_colour"], (w, h), 1, (w, h))
             RGB_image_undistorted = cv2.undistort(RGB, parameters[pc_recorded]["K_colour"], parameters[pc_recorded]["D_colour"], None, new_K_RGB)
 
+            """ 
             # Calculate the FoV of the depth and RGB camera
             fov_depth_h = 2 * np.arctan(w / (2 * parameters[pc_recorded]["K_depth"][0][0])) * 180 / np.pi  # Horizontal FoV in degrees
             fov_rgb_h = 2 * np.arctan(w / (2 * parameters[pc_recorded]["K_colour"][0][0])) * 180 / np.pi
             fov_depth_v = 2 * np.arctan(h / (2 * parameters[pc_recorded]["K_depth"][1][1])) * 180 / np.pi  # Vertical FoV in degrees
-            fov_rgb_v = 2 * np.arctan(h / (2 * parameters[pc_recorded]["K_colour"][1][1])) * 180 / np.pi
+            fov_rgb_v = 2 * np.arctan(h / (2 * parameters[pc_recorded]["K_colour"][1][1])) * 180 / np.pi 
+            print("field of view depth camera: ", fov_depth_h, fov_depth_v) 
+            print("field of view RGB camera: ", fov_rgb_h, fov_rgb_v)
+            """ 
 
-            # Crop depth image to match RGB camera's narrower FoV, print the FOV of the depth and RGB camera to see the difference
-            crop_factor_h = min(1,fov_rgb_h / fov_depth_h)
-            crop_factor_v = min(1,fov_rgb_v / fov_depth_v)
-            crop_width = int(w * crop_factor_h)
-            crop_height = int(h * crop_factor_v)
-
-            x_min = (w - crop_width) // 2
-            x_max = x_min + crop_width
-            y_min = (h - crop_height) // 2
-            y_max = y_min + crop_height
-            
-
-            #Crop the images  
-            depth_image_undistorted = depth_image_undistorted[y_min:y_max, x_min:x_max] 
-            
-          
             #D455f Tranlation and orientation from depth to colour image   
             Rotation_Matrix = np.array([[0.999988,0.000502921,0.00483117], 
                                         [-0.000513652,0.999997,0.00222027], 
@@ -226,7 +212,7 @@ if __name__ == "__main__":
             masked_rgb = cv2.bitwise_and(RGB_image_undistorted, RGB_image_undistorted, mask=mask)
            
             #save the images to the path 
-            if Write_mode == True:
+            if Write_mode:
                 hha_complete = getHHA(parameters[pc_recorded]["K_depth"],filtered_depth_image ,filtered_depth_image) 
                 tempory_filname=filnames.split("Depth")[1]  
                 cv2.imwrite(f'{write_to_path}/{modes}/RGB/'+f'undistored_RGB{filnames.split("Depth")[1]}',RGB_image_undistorted)
@@ -235,5 +221,5 @@ if __name__ == "__main__":
                 cv2.imwrite(f'{write_to_path}/{modes}/RGB_masked/'+f'masked_RGB{filnames.split("Depth")[1]}',masked_rgb)  
                 
             count += 1  
-            print(f"Iterration {count}/{len(os.listdir(vej_depth))} doing: {modes} ")
+            print(f"Iterration {count}/{len(os.listdir(path_depth))} doing: {modes}")
         
