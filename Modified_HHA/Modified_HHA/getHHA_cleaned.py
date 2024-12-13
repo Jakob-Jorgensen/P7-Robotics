@@ -16,8 +16,6 @@ Write_mode = "False" # True or False for writing to path
 
 ########## Interfacing with the dataset ##########
 
-
-
 '''
 must use 'colour_BGR2GRAY' here, or you will get a different gray-value with what MATLAB gets.
 ''' 
