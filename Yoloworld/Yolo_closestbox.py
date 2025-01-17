@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 model = YOLO("YOLO_Training/custom_model313/weights/best.pt")
 
 # Define paths
-rgb_path = r"C:\Users\eymen\Documents\project1\Final_dataset\Testing\RGB2"
-depth_images_path = r"C:\Users\eymen\Documents\project1\Final_Dataset\Testing\Depth2"
+rgb_path = r"C:\Users\Final_dataset\Testing\RGB2"
+depth_images_path = r"C:\Users\Final_Dataset\Testing\Depth2"
 output_folder_closest = "closest_box_end"
 output_folder_binary = "closest_box_binary_end"  # New folder for binary images
 output_folder_initial = "initial_predictions_end"
