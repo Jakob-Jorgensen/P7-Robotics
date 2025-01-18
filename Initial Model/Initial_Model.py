@@ -183,7 +183,7 @@ visualization_callback = VisualizePredictionsCallback(
 
 # Weighted binary cross-entropy kayıp fonksiyonu
 def weighted_binary_crossentropy(y_true, y_pred):
-    weight_for_ones = 60.0  # Beyaz piksellerin ağırlığı
+    weight_for_ones = 50.0  # Beyaz piksellerin ağırlığı
     weight_for_zeros = 1.0  # Siyah piksellerin ağırlığı
 
     # y_true ve y_pred tensorlarının boyutları eşit olmalıdır.
@@ -250,7 +250,7 @@ plt.xlim(0,19)
 plt.title('Training and Validation Loss')
 plt.legend()  
 
-#Model.save
+
 # Function to visualize input and output saliency map
 def visualize_saliency(rgb_img, HHA_img, saliency_map, prediction):
 
@@ -282,10 +282,6 @@ sample_saliency = saliency_val[sample_index]  # Ground truth saliency map for co
 predicted_saliency = model.predict([sample_rgb, sample_HHA])
 print(f"predicted shape: {predicted_saliency.shape}")
 
-# # Visualize the result
-# visualize_saliency(sample_rgb[0],sample_HHA[0], sample_saliency, predicted_saliency[0])
-# model.summary()
-# model.load_weights('testresults2_141224/1stmodelv2.h5')
 
 # After training the model and obtaining predictions
 y_true = saliency_val.flatten()  # Flatten the ground truth saliency maps to a 1D array
@@ -332,9 +328,9 @@ with open('1stmodel_architecture.json', 'w') as json_file:
 
 
 # Paths to test folders
-test_rgb_folder = r"C:\Users\eymen\Documents\project1\Final_Dataset\Testing\RGB2"
-test_depth_folder = r"C:\Users\eymen\Documents\project1\Final_Dataset\Testing\HHA2"
-test_gt_folder = r"C:\Users\eymen\Documents\project1\Final_Dataset\Testing\GT3"
+test_rgb_folder = r"C:\Users\Final_Dataset\Testing\RGB2"
+test_depth_folder = r"C:\Users\Final_Dataset\Testing\HHA2"
+test_gt_folder = r"C:\Users\Final_Dataset\Testing\GT3"
 
 
 rgb_test, depth_test, saliency_test = load_dataset(test_rgb_folder, test_depth_folder, test_gt_folder)
@@ -373,7 +369,6 @@ sample_saliency = saliency_test[sample_index]  # Ground truth saliency map for c
 # Predict saliency map
 predicted_saliency = model.predict([sample_rgb, sample_HHA])
 print(f"predicted shape: {predicted_saliency.shape}")
-
 
 
 
