@@ -47,14 +47,14 @@ def load_dataset(rgb_folder, depth_folder, gt_folder, target_size=(224, 224)):
     return np.array(rgb_images), np.array(depth_images), np.array(saliency_maps)
 
 # Dataset folder paths
-val_rgb_folder = r"C:\Users\eymen\Documents\project1\Final_dataset_Combined_sent\Validation\RGB"
-val_depth_folder = r"C:\Users\eymen\Documents\project1\Final_dataset_Combined_sent\Validation\HHA"
-val_saliency_folder = r"C:\Users\eymen\Documents\project1\Final_dataset_Combined_sent\Validation\GT"
+val_rgb_folder = r"C:\Users\Final_dataset_Combined_sent\Validation\RGB"
+val_depth_folder = r"C:\Users\Final_dataset_Combined_sent\Validation\HHA"
+val_saliency_folder = r"C:\Users\Final_dataset_Combined_sent\Validation\GT"
 
 # Original and augmented folder paths
-train_rgb_folder = r"C:\Users\eymen\Documents\project1\Final_dataset_Combined_sent\Training\RGB"
-train_depth_folder = r"C:\Users\eymen\Documents\project1\Final_dataset_Combined_sent\Training\HHA"
-train_saliency_folder = r"C:\Users\eymen\Documents\project1\Final_dataset_Combined_sent\Training\GT"
+train_rgb_folder = r"C:\Users\Final_dataset_Combined_sent\Training\RGB"
+train_depth_folder = r"C:\Users\Final_dataset_Combined_sent\Training\HHA"
+train_saliency_folder = r"C:\Users\Final_dataset_Combined_sent\Training\GT"
 
 
 #Loading datasets
@@ -181,18 +181,18 @@ visualization_callback = VisualizePredictionsCallback(
     sample_saliency=sample_saliency
 )
 
-# Weighted binary cross-entropy kayıp fonksiyonu
+# Weighted binary cross-entropy loss function
 def weighted_binary_crossentropy(y_true, y_pred):
     weight_for_ones = 50.0  # Beyaz piksellerin ağırlığı
     weight_for_zeros = 1.0  # Siyah piksellerin ağırlığı
 
-    # y_true ve y_pred tensorlarının boyutları eşit olmalıdır.
+    # Calculate weights for each pixel (weights tensor must have the same shape as y_true)
     weights = y_true * weight_for_ones + (1 - y_true) * weight_for_zeros
     
-    # Kayıp fonksiyonu her piksel için uygulanmalı
+    # Compute binary crossentropy loss for each pixel
     loss = tf.keras.losses.binary_crossentropy(y_true, y_pred)
     
-    # Boyut uyuşmazlığı problemini çözmek için yayılım (broadcasting) kullanılacak
+    # Apply broadcasting to calculate weighted loss
     weighted_loss = loss * tf.reduce_mean(weights, axis=-1)
     
     return tf.reduce_mean(weighted_loss)
@@ -248,28 +248,7 @@ plt.ylabel('Loss')
 plt.ylim(0, 1)
 plt.xlim(0,19)
 plt.title('Training and Validation Loss')
-plt.legend()  
-
-
-# Function to visualize input and output saliency map
-def visualize_saliency(rgb_img, HHA_img, saliency_map, prediction):
-
-    rgb_img = cv2.cvtColor(rgb_img,cv2.COLOR_BGR2RGB)
-    HHA_img = cv2.cvtColor(HHA_img,cv2.COLOR_BGR2RGB)
-
-    fig, axes = plt.subplots(1, 4, figsize=(16, 8))
-    axes[0].imshow(rgb_img)
-    axes[0].set_title("RGB Image")
-    
-    axes[1].imshow(HHA_img) 
-    axes[1].set_title("HHA Image")
-    
-    axes[2].imshow(saliency_map[:, :], cmap='gray')
-    axes[2].set_title("Ground Truth Saliency Map")
-    
-    axes[3].imshow(prediction[:, :, 0]>0.5, cmap='gray')
-    axes[3].set_title("Predicted Saliency Map")
-    
+plt.legend()      
    
 
 # Predict saliency map for a sample image from the validation set
